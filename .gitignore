@@ -1,0 +1,75 @@
+# ===== 절대 GitHub에 올리면 안 되는 것들 =====
+
+# API 키 (가장 중요!)
+.env
+.env.*
+!.env.example
+*.key
+api_keys.txt
+secrets/
+
+# Python 캐시
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 가상환경
+venv/
+env/
+.venv/
+ENV/
+
+# Jupyter Notebook 체크포인트
+.ipynb_checkpoints/
+
+# VS Code 개인 설정
+.vscode/
+
+# macOS / Windows 시스템 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 데이터 파일 (크기 큼, GitHub 비효율)
+*.csv
+*.tif
+*.geojson
+*.shp
+*.shx
+*.dbf
+*.prj
+*.pkl
+*.h5
+*.parquet
+*.pdf
+*.xml
+
+# 단, 작은 예시 데이터는 허용
+!data/sample/*.csv
+!shared/schemas/*.json
+
+# 로컬 다운로드 폴더
+downloads/
+data/raw/
+data/processed/
+
+# 모델 파일 (크기 큼)
+*.model
+*.joblib
+models/*.pkl
+
+# 로그
+*.log
+logs/
+
+# OS 임시 파일
+*.swp
+*.swo
+*~
+
+# 빌드 결과물
+build/
+dist/
+*.egg-info/
