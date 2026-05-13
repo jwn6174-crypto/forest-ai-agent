@@ -19,6 +19,11 @@ market_snapshot.py
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
+import sys
+
+# kau_api 모듈 import 가능하게 — 같은 src/ 폴더
+sys.path.insert(0, str(Path(__file__).parent))
+from kau_api import fetch_kau_price, find_latest_data
 
 ROOT = Path(__file__).resolve().parents[2]
 KOFPI_PATH = ROOT / "module_bd" / "data" / "interim" / "kofpi_history.parquet"
@@ -88,6 +93,87 @@ def _get_timber_price_for_species(df: pd.DataFrame, species: str) -> dict:
     
     return price_dict
 
+def _get_kau_snapshot(date_iso: str) -> dict:
+    """
+    KAU/KOC 시장 가격 가져오기.
+    
+    date_iso 의 *해당일* 부터 시도, 데이터 없으면 *최근 영업일* 자동 검색.
+    KAU 거래량 가장 많은 vintage 의 종가 사용.
+    """
+    target_date = date_iso.replace("-", "")  # YYYY-MM-DD → YYYYMMDD
+    
+    # 해당일 시도
+    items = fetch_kau_price(target_date)
+    actual_date = target_date
+    
+    # 없으면 자동 검색 (2-14일 전)
+    if not items:
+        latest_date, items = find_latest_data(max_days_back=14)
+        if items:
+            actual_date = latest_date
+    
+    if not items:
+        return {
+            "kau_close": None,
+            "koc_estimate": None,
+            "kau_vintage": None,
+            "actual_date": None,
+            "warning": "KAU 데이터 없음 (API 또는 영업일 문제)",
+        }
+    
+    # KAU 종목만 필터 (KCU·KOC·국제 제외)
+    kau_items = [it for it in items if it["itmsNm"].startswith("KAU")]
+    
+    # 거래량 있는 KAU 우선 (가장 활발한 vintage)
+    kau_with_trades = [
+        it for it in kau_items 
+        if int(it.get("trqu", 0) or 0) > 0
+    ]
+    
+    if kau_with_trades:
+        # 거래량 가장 많은 KAU
+        best = max(kau_with_trades, key=lambda it: int(it.get("trqu", 0) or 0))
+    elif kau_items:
+        # 거래 없으면 첫 KAU (보통 KAU24/25)
+        best = kau_items[0]
+    else:
+        return {
+            "kau_close": None,
+            "koc_estimate": None,
+            "kau_vintage": None,
+            "actual_date": actual_date,
+            "warning": "KAU 종목 없음",
+        }
+    
+    kau_close = float(best["clpr"]) if best.get("clpr") else None
+    
+    # KOC 가격 — 진짜 데이터 있으면 사용, 없으면 KAU × 0.7 추정
+    koc_items = [it for it in items if it["itmsNm"].startswith("KOC")]
+    koc_with_trades = [
+        it for it in koc_items 
+        if int(it.get("trqu", 0) or 0) > 0
+    ]
+    
+    if koc_with_trades:
+        koc_best = max(koc_with_trades, key=lambda it: int(it.get("trqu", 0) or 0))
+        koc_close = float(koc_best["clpr"])
+        koc_source = f"KOC 실거래 ({koc_best['itmsNm']})"
+    elif kau_close:
+        # 가이드 §6.3: KAU × 0.7 추정 (KOC 거래 없는 경우)
+        koc_close = kau_close * 0.7
+        koc_source = "KAU × 0.7 추정 (KOC 거래 없음)"
+    else:
+        koc_close = None
+        koc_source = "데이터 없음"
+    
+    return {
+        "kau_close": kau_close,
+        "koc_estimate": koc_close,
+        "kau_vintage": best["itmsNm"],
+        "actual_date": actual_date,
+        "koc_source": koc_source,
+        "warning": None,
+    }
 
 def market_snapshot(date_iso: str) -> dict:
     """
@@ -173,14 +259,22 @@ def market_snapshot(date_iso: str) -> dict:
         },
     }
     
+    # KAU/KOC 시장 가격 ⭐ NEW
+    kau_data = _get_kau_snapshot(date_iso)
+    
     return {
         "date": date_iso,
         "timber_price": timber_price_default,
         "timber_price_by_species": timber_price_by_species,
         "timber_price_meta": timber_price_meta,
-        # KAU·KOC 는 추후 fetch_kau_price() 통합 (현재는 placeholder)
-        "kau_close": None,
-        "koc_estimate": None,
+        "kau_close": kau_data["kau_close"],
+        "koc_estimate": kau_data["koc_estimate"],
+        "kau_meta": {
+            "vintage": kau_data["kau_vintage"],
+            "actual_date": kau_data["actual_date"],
+            "koc_source": kau_data.get("koc_source"),
+            "warning": kau_data.get("warning"),
+        },
         "vcm_floor_wta": 17039,  # 박2020 산주 WTA 하한
         "discount_rate": 0.05,   # 산주 평균 4-6%
     }
@@ -199,6 +293,10 @@ if __name__ == "__main__":
     print(f"   기본 수종: {snap['timber_price_meta']['default_species']}")
     print(f"   할인율: {snap['discount_rate']}")
     print(f"   WTA: {snap['vcm_floor_wta']:,}원")
+    print(f"   KAU 종가: {snap['kau_close']:,.0f}원/tCO2 ({snap['kau_meta']['vintage']})" 
+          if snap['kau_close'] else "   KAU: 데이터 없음")
+    print(f"   KOC 추정: {snap['koc_estimate']:,.0f}원/tCO2 ({snap['kau_meta']['koc_source']})" 
+          if snap['koc_estimate'] else "   KOC: 데이터 없음")
     print(f"\n   timber_price (소나무 기준):")
     for grade, price in snap["timber_price"].items():
         price_str = f"{price:>10,}원/m³" if price else "       N/A"
