@@ -204,49 +204,104 @@ SPECIES_PDF_PAGES = {
 }
 
 
+# 작은 표 (한 페이지만 사용, 둘째 페이지 구조 미검증)
+SMALL_TABLES = {"해송_수피포함", "삼나무_수피포함", "이태리포플러_수피포함"}
+
+
 if __name__ == "__main__":
     print(f"📄 PDF: {PDF_PATH.name}")
-    print(f"🎯 강원지방소나무 두 페이지 결합 테스트")
+    print(f"🎯 22개 큰 표 케이스 일괄 처리 (첫 페이지 + 둘째 페이지 결합)")
+    print(f"   3개 작은 표는 첫 페이지만 (DRAFT)")
     print()
     
-    # 첫 페이지 추출
-    print("=" * 60)
-    print("📄 첫 페이지 (PDF p.14, 수고 6-28m)")
-    print("=" * 60)
-    df1 = parse_volume_table("14")
-    print(f"   shape: {df1.shape}")
+    results = {}
+    failures = []
     
-    # 둘째 페이지 추출
+    for (species, bark), (p1, p2) in SPECIES_PDF_PAGES.items():
+        key = f"{species}_{bark}"
+        print(f"\n{'=' * 60}")
+        print(f"🌲 {key}")
+        print(f"{'=' * 60}")
+        
+        try:
+            # 첫 페이지
+            print(f"📄 첫 페이지 p.{p1}")
+            df1 = parse_volume_table(str(p1))
+            
+            # 작은 표는 둘째 페이지 건너뛰기 (DRAFT)
+            if key in SMALL_TABLES:
+                print(f"   ⚠️  작은 표 — 둘째 페이지 건너뜀 (DRAFT)")
+                results[key] = (df1, "DRAFT")
+                continue
+            
+            # 둘째 페이지
+            print(f"📄 둘째 페이지 p.{p2}")
+            df2 = parse_volume_table_second(str(p2), expected_dbhs=list(df1.index))
+            
+            # 결합
+            combined = pd.concat([df1, df2], axis=1)
+            print(f"🔗 결합: {combined.shape}, {combined.notna().sum().sum()}/{combined.size} 값")
+            
+            results[key] = (combined, "OK")
+        
+        except Exception as e:
+            print(f"   ❌ {type(e).__name__}: {e}")
+            failures.append((key, str(e)))
+    
     print()
     print("=" * 60)
-    print("📄 둘째 페이지 (PDF p.15, 수고 30-52m)")
+    print(f"📊 처리 결과: {len(results)} 성공 / {len(failures)} 실패")
+    if failures:
+        for key, err in failures:
+            print(f"   ❌ {key}: {err}")
     print("=" * 60)
-    df2 = parse_volume_table_second("15", expected_dbhs=list(df1.index))
-    print(f"   shape: {df2.shape}")
     
-    # 결합
+    # 💾 각 수종별 CSV 저장 (전체)
     print()
-    print("=" * 60)
-    print("🔗 두 페이지 결합")
-    print("=" * 60)
-    combined = pd.concat([df1, df2], axis=1)
-    print(f"   결합 shape: {combined.shape}")
-    print(f"   수고 범위: {min(combined.columns)}m ~ {max(combined.columns)}m")
-    print(f"   흉고직경 범위: {min(combined.index)}cm ~ {max(combined.index)}cm")
+    print("💾 수종별 CSV 저장 중...")
+    for key, (df, quality) in results.items():
+        suffix = "_full" if quality == "OK" else "_partial"
+        out_csv = OUT_DIR / f"yield_{key}{suffix}.csv"
+        df.to_csv(out_csv, encoding="utf-8-sig")
+    print(f"   ✅ {len(results)}개 CSV 저장 완료")
     
-    # 미리보기 (처음 5행, 양 끝 컬럼)
+    # 💾 통합 long-format parquet
     print()
-    print("처음 5행 × (앞 6열, 뒤 3열):")
-    preview = pd.concat([combined.iloc[:5, :6], combined.iloc[:5, -3:]], axis=1)
-    print(preview.to_string())
+    print("💾 통합 long-format parquet 생성 중...")
+    
+    all_data = []
+    for key, (df, quality) in results.items():
+        species, bark = key.rsplit("_", 1)
+        df_long = df.reset_index().melt(
+            id_vars="흉고직경(cm)",
+            var_name="수고(m)",
+            value_name="재적(m³)"
+        )
+        df_long["수종"] = species
+        df_long["수피여부"] = bark
+        df_long["품질"] = quality
+        all_data.append(df_long)
+    
+    combined_all = pd.concat(all_data, ignore_index=True)
+    combined_all = combined_all[["수종", "수피여부", "흉고직경(cm)", "수고(m)", "재적(m³)", "품질"]]
+    
+    out_parquet = OUT_DIR / "yield_table_full.parquet"
+    combined_all.to_parquet(out_parquet)
     
     # 통계
-    n_total = combined.size
-    n_values = combined.notna().sum().sum()
-    print(f"\n📈 값 {n_values}개 / 총 {n_total}개")
-    print(f"   재적 범위: {combined.min().min():.4f} ~ {combined.max().max():.4f} m³")
+    n_total = len(combined_all)
+    n_ok_rows = (combined_all["품질"] == "OK").sum()
+    n_draft_rows = (combined_all["품질"] == "DRAFT").sum()
+    n_values = combined_all["재적(m³)"].notna().sum()
+    n_nan = combined_all["재적(m³)"].isna().sum()
     
-    # 저장
-    out_csv = OUT_DIR / "yield_강원지방소나무_수피포함_full.csv"
-    combined.to_csv(out_csv, encoding="utf-8-sig")
-    print(f"\n💾 {out_csv.relative_to(ROOT)}")
+    print(f"   ✅ {out_parquet.relative_to(ROOT)}")
+    print(f"   총 {n_total:,} 행 ({n_ok_rows:,} OK + {n_draft_rows:,} DRAFT)")
+    print(f"   재적 값: {n_values:,} 개 (NaN {n_nan:,} 개)")
+    print(f"   완성도: {n_values/n_total*100:.1f}%")
+    print(f"   수종: {combined_all['수종'].nunique()} 개")
+    
+    print()
+    print("=" * 60)
+    print("✅ 22개 큰 표 + 3개 작은 표 일괄 처리 완료")
+    print("=" * 60)
