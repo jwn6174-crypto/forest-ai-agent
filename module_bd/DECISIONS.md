@@ -142,4 +142,69 @@ KOFPI 분기별 보고서 진단 결과 (정우 발견 ⭐):
 
 ---
 
+## D4: shared/schemas.py — 가이드 §8.1 + 우리 확장 (옵션 P2)
+
+**날짜**: 2026-05-13 (Day 2 마감)
+
+**상황**:
+가이드 §8.1 의 4개 Pydantic 모델 (GrowthForecast, MarketSnapshot, CostFunction, RotationRule) 을 정의해야 함. 그러나 우리가 구현한 함수의 *반환 데이터* 가 가이드 §8.1 명세보다 *풍부* 함:
+
+- `market_snapshot()`: 가이드는 `timber_price` (소나무 6 등급) 만. 우리는 `timber_price_by_species` (7 수종), `timber_price_meta` (출처), `kau_meta` 등 *확장 자산* 보유.
+- `growth_predict()`: 가이드는 `volume/dbh/height/n_per_ha trajectory`. 우리는 `tmai_trajectory`, `method`, `warning` 추가.
+- `rotation_age()`: 가이드는 3 필드. 우리는 `legal_basis`, `species_category` 추가.
+- `cost_function()`: 가이드의 `CostFunction` 명세가 *함수 입력 변수* 모델로 모호 → 우리는 `CostInput` (입력) + `CostBreakdown` (출력) *분리*.
+
+**대안 비교**:
+
+| 옵션 | 가이드 매칭 | 우리 자산 보존 | 복잡도 |
+|---|---|---|---|
+| P1. 가이드 명세 그대로 | 100% | 0% (자산 손실) | 단순 |
+| **P2** (선택) | **100%** | **100% (Optional 확장)** | **중간** |
+| P3. 우리 자유 설계 | 80% | 100% | 복잡 |
+
+**선택**: 옵션 P2 — 가이드 §8.1 기본 필드 *100% 호환* + 우리 확장 필드 *Optional* 추가
+
+**근거**:
+- 가이드 호환성 100% → 희도 NPV 작성 시 *가이드대로 호출* 가능
+- 우리 풍부한 자산 (수종별 가격, 출처 메타) *Optional 활용* 가능
+- *후방 호환성* — 가이드 명세만으로도 모델 생성 가능 (검증 5개 통과)
+- 정직히 *가이드 vs 우리 확장* 차이 *주석 명시* — 학술 투명성
+- 정우 관점: "가이드는 *나침반*. 토씨 하나까지 따라야 하는 건 아님."
+
+**결과 구조**:
+
+```python
+# 가이드 §8.1 매칭 (필수 필드)
+class MarketSnapshot(BaseModel):
+    date: str
+    timber_price: Dict[str, Optional[int]]
+    kau_close: Optional[float]
+    koc_estimate: Optional[float]
+    vcm_floor_wta: float = 17039
+    discount_rate: float = 0.05
+    
+    # 우리 확장 (Optional)
+    timber_price_by_species: Optional[Dict[str, Dict[str, Optional[int]]]] = None
+    timber_price_meta: Optional[Dict[str, Any]] = None
+    kau_meta: Optional[Dict[str, Any]] = None
+```
+
+**검증 결과** (5개 스키마, 자가 테스트):
+- ✅ MarketSnapshot — 가이드 기본만으로 생성 가능
+- ✅ MarketSnapshot — 우리 확장 포함 생성 가능
+- ✅ RotationRule — 가이드 + 우리 확장
+- ✅ CostInput + CostBreakdown — 입력·출력 분리
+- ✅ GrowthForecast — `from_trajectory_dicts()` 헬퍼 작동
+
+**한계**:
+- `grade_distribution_trajectory` (가이드 §8.1) 는 Optional — Weibull fit 후 추후 채움
+- `carbon_uptake_rate` (가이드 §8.1) 도 Optional — 산림탄소 모델 통합 추후
+
+**시연 가치**:
+- 가이드 §8.1 *100% 호환* — 심사위원 매칭 검증 가능
+- *Optional 확장* 으로 우리 풍부한 자산 활용 가능
+- 팀 협업 *진짜 인프라* — 희도·수범이 IDE 자동완성으로 *빠른 작업*
+
+---
+
 ## (앞으로 추가 — 결정마다)
