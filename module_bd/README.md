@@ -25,6 +25,16 @@ from module_bd.src.market_snapshot import market_snapshot
 
 ---
 
+## 📋 의사결정 기록
+
+주요 설계 선택의 *근거* 와 *대안 비교* 는 [**DECISIONS.md**](DECISIONS.md) 참조.
+
+현재 기록된 결정:
+- **D1**: KOFPI 데이터 수종별 확장 (옵션 B)
+- **D2**: 표준품셈 → 비용 함수 (옵션 Y, 진짜 PDF 추출 + 간단 모델)
+
+---
+
 ## 📌 진행률
 
 ### Module B — 임분 성장 예측 (핵심 함수 완성 ✓)
