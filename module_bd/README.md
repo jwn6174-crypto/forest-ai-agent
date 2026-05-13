@@ -1,12 +1,12 @@
 # Module B / D — 성장 예측 · 시장 · 정책
 
 다목적 산림경영 AI Agent 의 데이터·정책 백엔드.
-산주의 임야 정보를 받아, *임분 성장 예측* + *시장 가격* + *법령 정보* 를 자동으로 제공한다.
+산주의 필요 정보를 받아, *임분 성장 예측* + *시장 가격* + *법령 정보* 를 자동으로 제공한다.
 
-> **모듈 C (희도) 가 NPV 계산할 때 호출하는 모든 데이터·함수의 집합지.**
-> 모듈 E (수범) 의 LLM 에이전트가 자연어 답변할 때도 이 모듈을 거친다.
+> **모듈 C (희도) 가 NPV 계산 시 호출하는 모든 데이터·함수의 집합지.**
+> 모듈 E (수범) 의 LLM 에이전트가 자연어 답변할 때도 이 모듈에 의존함.
 
-**최종 업데이트:** 2026-05-13 (Day 2)
+**최종 업데이트:** 2026-05-13 (Day 2 후반)
 
 ---
 
@@ -17,140 +17,163 @@
 from module_bd.src.growth_predict import growth_predict, lookup_volume
 from module_bd.src.kau_api import fetch_kau_price
 from module_bd.src.legal_api import search_law, fetch_law_full
+from module_bd.src.legal_rotation import rotation_age
+from module_bd.src.market_snapshot import market_snapshot
 ```
 
-오늘 (Day 2) 기준 위 4개 함수가 *production-ready*.
+오늘 (Day 2) 기준 6 개 함수가 *production-ready*.
 
 ---
 
-## 📊 진척도
+## 📌 진행률
 
-### Module B — 임분 성장 예측 (핵심 함수 완성 ✅)
+### Module B — 임분 성장 예측 (핵심 함수 완성 ✓)
 
-| 함수 / 산출물 | 상태 | 데이터 출처 | 행/값 |
+| 함수 / 산출물 | 상태 | 데이터 출처 | 행 수 |
 |---|---|---|---|
-| `lookup_volume()` — 개별 나무 재적 | ✅ 완성 | 입목수간재적표 (Ⅱ장) | 16,163 값 |
-| `growth_predict()` — 임분 성장 예측 | ✅ 완성 | 임분수확표 (Ⅶ장) | 576 행 |
+| `lookup_volume()` — 개별 수목 재적 | ✅ 완성 | 임목재적표 (Ⅱ장) | 16,163 개 |
+| `growth_predict()` — 임분 성장 예측 (가이드 §8.2) | ✅ 완성 | 임분수확표 (Ⅶ장) | 576 행 |
 | `yield_table_full.parquet` | ✅ | Ⅱ장 통합 | 14 수종 |
 | `yield_table_stand.parquet` | ✅ | Ⅶ장 통합 | 11 수종 |
 | 산악기상 시계열 + 보정 | ⏳ | 산악기상 API | 미시작 |
 | 지위지수 추정기 | ⏳ | NFI 매칭 | 미시작 |
 
-### Module D — 시장·정책 (일부 완성)
+### Module D — 시장·정책 (핵심 완성)
 
 | 함수 | 상태 | 데이터 출처 |
 |---|---|---|
 | `fetch_kau_price()` | ✅ | data.go.kr 금융위 |
 | `search_law()` + `fetch_law_full()` | ✅ | 법제처 OpenAPI |
-| `get_parcel_polygon()` (VWorld) | ⏳ | VWorld 2D — 인증 외부 문제 |
-| KOFPI 원목가격 | ⏳ | KOFPI 웹 스크래핑 |
-| 별표 3 → 기준벌기령 룰베이스 | ⏳ | 별표 3 PDF (다운로드 완료) |
+| `rotation_age()` — 별표 3 룰베이스 | ✅ NEW | 산림자원법 별표 3 |
+| `market_snapshot()` — 가이드 §6.3 핵심 | ✅ NEW | KOFPI PDF 390 행 |
+| `get_parcel_polygon()` (VWorld) | ⏳ | VWorld 2D — 인증 키 문제 |
 | 표준품셈 → 비용 함수 | ⏳ | 표준품셈 PDF |
 | 산림탄소상쇄 RAG 코퍼스 | ⏳ | 가이드라인 PDF 6종 |
 
 ---
 
-## 🌲 두 가지 yield 표 — 헷갈리지 마세요
+## 🌲 두 가지 yield 표 — 헷갈리지 말 것
 
-PDF `2014 임목재적·바이오매스 및 임분수확표` 안에 *두 종류의 표* 가 있습니다. **둘 다 필요**하지만 *완전히 다른 의미*.
+PDF `2014 임목재적·바이오매스 및 임분수확표` 안에 *두 종류의 표* 가 있습니다. **둘 다 필요**하지만 *완전히 다른 표*.
 
-### Ⅱ장 입목수간재적표 (p.13-103)
-
-**개별 나무 한 그루의 부피** 변환표.
-
+### Ⅱ장 임목재적표 (p.13-103)
+**개별 수목 한 그루의 부피** 변환표.
 - 입력: 수종, DBH (흉고직경 cm), 수고 (m)
-- 출력: 재적 (m³) — *나무 한 그루*
-- 용도: 산주가 *내 산에 DBH 22cm × 수고 18m 인 나무가 있다* → *부피는?*
+- 출력: 재적 (m³) — *수목 한 그루*
+- 용도: 산주가 *내 숲에 DBH 22cm × 수고 18m 인 수목이 있다* → *부피는?*
 
-이 데이터로 `lookup_volume()` 함수 작동.
+→ `lookup_volume()` 함수 작동.
 
 ### Ⅶ장 임분수확표 (p.191-215) ⭐ 모듈 B의 진짜 핵심
-
 **임분 (1 ha) 의 시간에 따른 성장** 표.
-
 - 입력: 수종, 지위지수 (SI), 임령 (년)
 - 출력: ha 당 본수, 평균 DBH, 평균 수고, 재적 (m³/ha), 연평균 생장량
 - 용도: 산주가 *25년생 강원지방소나무 SI=14 임분을 50년까지 키우면?* → *재적 173 → 281 m³/ha (1.63배)*
 
-이 데이터로 `growth_predict()` 함수 작동. **모듈 C 의 Faustmann NPV 계산의 핵심 입력.**
+→ `growth_predict()` 함수 작동. **모듈 C 의 Faustmann NPV 계산의 핵심 입력.**
 
 ---
 
-## 🚀 함수 API 문서
+## 🛠 함수 API 문서
 
 ### `lookup_volume(species, bark, dbh, height, use_draft=False)`
 
-개별 나무의 재적 lookup (Ⅱ장 입목수간재적표).
+개별 수목 재적 lookup (Ⅱ장 임목재적표).
 
 ```python
 from module_bd.src.growth_predict import lookup_volume
 
 result = lookup_volume("강원지방소나무", "수피포함", dbh=22, height=18)
-# {
-#   "volume": 0.3265,         # m³ (한 그루)
-#   "lookup_dbh": 22,         # 실제 사용한 DBH (가장 가까운 값)
-#   "lookup_height": 18,
-#   "quality": "OK",
-#   "warning": None,
-# }
+# {"volume": 0.3265, "lookup_dbh": 22, "lookup_height": 18, "quality": "OK", "warning": None}
 ```
 
-**파라미터:**
-- `species`: 수종명 — 14 개 가능 (강원지방소나무, 잣나무, 낙엽송, 해송 등)
-- `bark`: `"수피포함"` (기본) 또는 `"수피제외"`
-- `dbh`: 흉고직경 (cm). 표에 없으면 가장 가까운 값 사용.
-- `height`: 수고 (m). 표에 없으면 가장 가까운 값 사용.
-- `use_draft`: `True` 면 작은 표 (해송/삼나무/이태리포플러) DRAFT 데이터 사용
+### `growth_predict(species, site_index, age_now, forecast_years, climate_scenario)`
 
-**경고 조건:**
-- 빈 셀 매칭 (예: DBH 5cm × 수고 50m — 물리적으로 불가능)
-- 근접값 사용 (요청과 1cm/1m 초과 차이)
-- DRAFT 데이터 (작은 표)
-
-### `growth_predict(species, site_index, age_now, target_age)`
-
-임분 성장 예측 (Ⅶ장 임분수확표).
+임분 성장 예측 — **가이드 §8.2 시그니처 정확 매칭**.
 
 ```python
 from module_bd.src.growth_predict import growth_predict
 
-result = growth_predict("강원지방소나무", site_index=14, age_now=30, target_age=50)
-# {
-#   "current": {
-#     "age": 30, "dbh_cm": 16.9, "height_m": 12.0, "dominant_height_m": 14.0,
-#     "n_per_ha": 1261, "volume_m3_per_ha": 173.0, "tmai_m3_per_ha_yr": 5.77,
-#     "method": "exact",
-#   },
-#   "future": {
-#     "age": 50, "dbh_cm": 26.7, "height_m": 15.6, ...
-#     "volume_m3_per_ha": 281.8, ...
-#   },
-#   "growth": {
-#     "years": 20,
-#     "dbh_increase_cm": 9.8,
-#     "height_increase_m": 3.6,
-#     "volume_increase_m3_per_ha": 108.8,
-#     "volume_ratio": 1.63,
-#     "n_mortality": 486,     # 자연 고사 그루 수
-#   },
-#   "warning": None,
-# }
+trajectory = growth_predict(
+    species="강원지방소나무",
+    site_index=14,
+    age_now=30,
+    forecast_years=[0, 5, 10, 15, 20],
+    climate_scenario="baseline",
+)
+# List[dict] — 시간별 trajectory
+# [{"dt": ..., "age": 30, "volume": 173.0, "dbh": 16.9, "height": 12.0, 
+#   "n_per_ha": 1261, "tmai_m3_per_ha_yr": 5.77, "climate_scenario": "baseline", 
+#   "method": "exact", "warning": None}, ...]
 ```
 
 **파라미터:**
-- `species`: 11 개 (강원/중부지방소나무, 잣나무, 낙엽송, 리기다소나무, 편백, 상수리/굴참/신갈나무, 자작/백합나무)
-- `site_index`: 지위지수 — 수종마다 가능 값 다름 (보통 3~5 단계)
+- `species`: 11 가지 (강원/중부지방소나무, 잣나무, 낙엽송, 리기다소나무, 신갈, 상수리/굴참나무, 편백, 자작/백합나무)
+- `site_index`: 지위지수 — 수종마다 가능 값 (보통 3~5 단계)
 - `age_now`: 현재 임령 (년)
-- `target_age`: 목표 임령 (년)
+- `forecast_years`: List[int] — 예측 시점 (예: `[0, 5, 10, 15]`)
+- `climate_scenario`: `"baseline"` (기본) | `"SSP126"` | `"SSP245"` | `"SSP585"` (현재 baseline 외엔 warning)
 
-**보간:**  
-표에 없는 임령은 *양 옆 값으로 선형 보간*. 예: 임령 32년 → 30년·35년 사이 보간.
+### `market_snapshot(date_iso)` ⭐ NEW (Day 2 후반)
 
-**경고 조건:**
-- `age_now > target_age` (역방향 예측 불가)
-- 임령 범위 밖 (예: 90년 — 표는 보통 10~80년만)
-- 자작나무·백합나무 *(잠정)* 데이터
-- 해송·삼나무·이태리포플러는 Ⅶ장에 없음 → `lookup_volume()` 대안 안내
+**가이드 §6.3 — 특정 날짜의 종합 시장 상태.**
+
+```python
+from module_bd.src.market_snapshot import market_snapshot
+
+snap = market_snapshot("2026-05-13")
+# {
+#   "date": "2026-05-13",
+#   "timber_price": {                      # 소나무 기본 (가이드 §6.3 시그니처)
+#     "특용재": 360000, "1등급": 199700, "2등급": 173400,
+#     "3등급": 158300, "원주재": 148700, "원료재": 75300,
+#   },
+#   "timber_price_by_species": {           # 7 수종 확장 (옵션 B)
+#     "소나무":   {"특용재": 360000, "1등급": 199700, ...},
+#     "낙엽송":   {"특용재": 160700, "1등급": 150500, ...},
+#     "잣나무":   {"특용재": 169900, "1등급": 154700, ...},
+#     "리기다소나무": {"특용재": None, "1등급": 105400, ...},
+#     "참나무류": {"특용재": None, "1등급": 114800, ...},
+#     "편백":     {"특용재": None, "1등급": 161700, "2등급": 142000, "3등급": None, ...},
+#     "삼나무":   {"특용재": None, "1등급": 135000, "2등급": 130000, "3등급": None, ...},
+#   },
+#   "timber_price_meta": {                 # 정직한 출처·한계 정보
+#     "source": "KOFPI 분기별 원목시장가격조사 보고서",
+#     "url": "https://www.forest.go.kr (정보공개 → 통합자료실)",
+#     "actual_data_period": "2025년 12월 (4분기)",
+#     "default_species": "소나무",
+#     "grade_changes": "Q3·Q4 부터 편백·삼나무 등급 구성 변경 (3등급 → 원료재급)",
+#     "legal_basis": "산림청 고시 제2025-22호 원목규격 고시",
+#     "unit": "원/m³",
+#     "unit_conversion": {"소나무류": "1m³=0.85톤", "낙엽송류": "0.77톤", ...},
+#   },
+#   "kau_close": None,         # 추후 fetch_kau_price() 통합
+#   "koc_estimate": None,
+#   "vcm_floor_wta": 17039,    # 박2020 산주 WTA 하한
+#   "discount_rate": 0.05,
+# }
+```
+
+**핵심 동작:**
+- `date_iso` 이전의 *가장 최근 월* KOFPI 데이터 lookup
+- 미래 날짜 → 가장 최근 가격 반환 (Faustmann real-price-constant 가정)
+- 과거 날짜 (예: `"2025-05-15"`) → Q2 시점 데이터 정확 lookup
+
+### `rotation_age(species, ownership)` ⭐ NEW (Day 2 후반)
+
+산림자원법 시행규칙 별표 3 기준벌기령 룰베이스.
+
+```python
+from module_bd.src.legal_rotation import rotation_age
+
+rotation_age("강원지방소나무", "사유림")  # → 40
+rotation_age("잣나무", "국유림")          # → 50
+rotation_age("낙엽송", "사유림")          # → 30
+rotation_age("신갈나무", "사유림")        # → 25 (참나무류 매핑)
+```
+
+**소스:** 산림자원의 조성 및 관리에 관한 법률 시행규칙 별표 3 (개정 2023-06-27)
+**산출물:** `data/processed/rotation_age.json` (8 카테고리 × 2 소유 = 16 룰)
 
 ### `fetch_kau_price(start_date, end_date)`
 
@@ -158,28 +181,16 @@ KAU/KCU 탄소가격 일별 시세 (data.go.kr 금융위).
 
 ```python
 from module_bd.src.kau_api import fetch_kau_price
-
 df = fetch_kau_price("20260501", "20260513")
-# DataFrame: 거래일, 종목명, 종가, 시가, 고가, 저가, 거래량 등
 ```
 
 ### `search_law(query)` + `fetch_law_full(law_id)`
 
 법령 검색 + 본문 다운로드 (법제처 OpenAPI).
 
-```python
-from module_bd.src.legal_api import search_law, fetch_law_full
-
-results = search_law("산림자원의 조성")
-# [{"법령ID": "...", "법령명": "...", ...}, ...]
-
-xml_path = fetch_law_full(law_id="265430")
-# 법령 XML 본문 + 별표 PDF 다운로드
-```
-
 ---
 
-## 📁 데이터 자산
+## 📦 데이터 산출
 
 ### 통합 데이터 (희도/수범이 직접 사용)
 
@@ -187,12 +198,11 @@ xml_path = fetch_law_full(law_id="265430")
 |---|---|---|---|
 | `data/interim/yield_table_full.parquet` | Ⅱ장 통합, long format | 16,414 행 | `lookup_volume()` |
 | `data/interim/yield_table_stand.parquet` | Ⅶ장 통합, long format | 576 행 | `growth_predict()` |
+| `data/interim/kofpi_history.parquet` ⭐ NEW | KOFPI 4분기 통합 | 390 행 | `market_snapshot()` |
+| `data/processed/rotation_age.json` ⭐ NEW | 별표 3 룰베이스 | 16 룰 | `rotation_age()` |
 
-**`yield_table_full.parquet` 컬럼:**  
-`수종`, `수피여부`, `흉고직경(cm)`, `수고(m)`, `재적(m³)`, `품질` (`"OK"` or `"DRAFT"`)
-
-**`yield_table_stand.parquet` 컬럼:**  
-`수종`, `지위지수`, `임령(년)`, `평균DBH(cm)`, `단면적(m²/ha)`, `평균수고(m)`, `우세목수고(m)`, `본수(본/ha)`, `재적(m³/ha)`, `정기평균생장량(m³/ha)`, `정기평균생장률(%)`, `연평균생장량(m³/ha/yr)`
+**`kofpi_history.parquet` 컬럼:**
+`연도`, `분기`, `월`, `수종`, `등급`, `가격_원_per_m3`, `source_pdf`
 
 ### 원본 데이터
 
@@ -201,112 +211,101 @@ xml_path = fetch_law_full(law_id="265430")
 | `data/raw/yield_table_2014.pdf` | 임분수확표 원본 (3.2 MB) |
 | `data/raw/kau_daily/*.csv` | KAU 일별 시세 |
 | `data/raw/law_extracts/*.xml`, `*.pdf` | 법령 + 별표 |
+| `data/raw/kofpi_reports/2025년_{1,2,3,4}분기_*.pdf` ⭐ NEW | KOFPI 분기별 보고서 4 종 |
 
 ---
 
-## 🗺️ PDF 페이지 매핑
+## 📊 KOFPI 데이터 — 진짜 자산 (Day 2 후반)
 
-### Ⅱ장 입목수간재적표 (각 수종 2 페이지)
-PDF page = 책 page + 6
+### 추출 결과 요약
+4 분기 × 12 개월 시계열
+7 수종 × 6 등급 (편백·삼나무 분기별 형식 변화)
+총 390 행
+가격 범위: 64,900 ~ 365,900 원/m³
 
-| # | 수종 | 수피포함 | 수피제외 |
+### 수종별 등급 구성
+
+| 수종 | 등급 수 | 등급 | 비고 |
 |---|---|---|---|
-| 1 | 강원지방소나무 | 14-15 | 18-19 |
-| 2 | 중부지방소나무 | 22-23 | 26-27 |
-| 3 | 해송 (DRAFT) | 30-31 | — |
-| 4 | 리기다소나무 | 32-33 | 36-37 |
-| 5 | 잣나무 | 40-41 | 44-45 |
-| 6 | 낙엽송 | 48-49 | 52-53 |
-| 7 | 삼나무 (DRAFT) | 56-57 | — |
-| 8 | 편백 | 58-59 | 62-63 |
-| 9 | 상수리나무 | 66-67 | 70-71 |
-| 10 | 굴참나무 | 74-75 | 78-79 |
-| 11 | 신갈나무 | 82-83 | 86-87 |
-| 12 | 자작나무 | 90-91 | 92-93 |
-| 13 | 백합나무 | 94-95 | 98-99 |
-| 14 | 이태리포플러 (DRAFT) | 102-103 | — |
+| 소나무 | 6 | 특용재, 1·2·3, 원주재, 원료재 | 모든 분기 동일 |
+| 낙엽송 | 6 | 위와 동일 | 모든 분기 동일 |
+| 잣나무 | 6 | 위와 동일 | 모든 분기 동일 |
+| 리기다소나무 | 5 | 1·2·3, 원주재, 원료재 | 특용재 없음 |
+| 참나무류 | 4 | 1·2·3, 원료재 | 원주재 없음 |
+| 편백 | 3 | Q1/Q2: 1·2·3 / Q3/Q4: 1·2, 원료재 | Q3 부터 형식 변경 |
+| 삼나무 | 2 또는 3 | Q1/Q2: 2·3 / Q3/Q4: 1·2, 원료재 | Q3 부터 형식 변경 |
 
-### Ⅶ장 임분수확표 (수종별 2~3 페이지)
+### 수종별 가격 차이 (1등급, 2025 Q4 기준)
+소나무:        199,700원/m³  (기준)
+편백:          161,700원/m³  (-19.0%)
+잣나무:        154,700원/m³  (-22.5%)
+낙엽송:        150,500원/m³  (-24.6%)
+삼나무:        135,000원/m³  (-32.4%)
+참나무류:      114,800원/m³  (-42.5%)
+리기다소나무:  105,400원/m³  (-47.2%)
 
-| # | 수종 | 페이지 | SI 단계 |
-|---|---|---|---|
-| 1 | 강원지방소나무 | 192-193 | 12/14/16/18 |
-| 2 | 중부지방소나무 | 194-195 | 10/12/14/16 |
-| 3 | 리기다소나무 | 196-198 | 10/12/14/16/18 |
-| 4 | 잣나무 | 199-200 | 3 단계 |
-| 5 | 낙엽송 | 201-203 | 5 단계 |
-| 6 | 편백 | 204-205 | 3 단계 |
-| 7 | 상수리나무 | 206-207 | 3 단계 |
-| 8 | 굴참나무 | 208-209 | 4 단계 |
-| 9 | 신갈나무 | 210-211 | 3 단계 |
-| 10 | 자작나무 *(잠정)* | 212-213 | 4 단계 |
-| 11 | 백합나무 *(잠정)* | 214-215 | 5 단계 (임령 5-40만) |
+→ **수종별 가격 차이 *22-47%*. NPV 계산에 *결정적 영향*. 가이드 §6.3 의 `timber_price` 만으로는 *불충분*. `timber_price_by_species` *필수*.**
 
-> 해송·삼나무·이태리포플러는 **Ⅶ장에 없음**. `growth_predict()` 가 명시적 경고 반환.
+### 단위 환산 (KOFPI 보고서 표준)
+- 소나무류 (소나무, 잣나무, 리기다소나무): 1m³=0.85톤
+- 낙엽송류: 1m³=0.77톤
+- 편백류 (편백, 삼나무): 1m³=0.73톤
+- 참나무류: 1m³=1톤
 
 ---
 
 ## ⚠️ 알려진 한계
 
-### 1. Ⅱ장 작은 표 3개 — DRAFT 라벨
+### 1. Ⅱ장 작은 표 3개는 DRAFT 라벨
+이태리·일나무·이태리포플러는 *흉고직경 4-30cm × 수고 4-30m* 의 작은 표.
+*품질 == "OK"* 필터로 회피 가능. (영향 적음)
 
-해송·삼나무·이태리포플러는 *흉고직경 4-30cm × 수고 4-30m* 의 작은 표.  
-pdfplumber 텍스트 추출 시 페이지 경계 모호로 일부 값 정렬 어긋남.
+### 2. Ⅶ장 일부 수종 미수록
+이태리·일나무·이태리포플러는 임분수확표 *없음*. 시간 예측 불가.
+→ `growth_predict()` 가 자동 안내. `lookup_volume()` 으로 개별 수목 가능.
 
-**검증 사례:** 해송 DBH 6cm × 수고 22m = 0.3652 m³ (물리적으로 불가능 — 페이지 31 큰 DBH 값이 페이지 30 에 섞임).
+### 3. 자작·백합나무 *(잠정)*
+PDF 원문에 *(잠정)* 표시. → `growth_predict()` 가 자동 경고 반환.
 
-**영향:** 충북 보은 (파일럿) 주력 수종 = 강원지방소나무·잣나무·낙엽송. 작은 표 수종은 *시연 영향 작음*. `품질 == "OK"` 필터로 우회.
+### 4. KOFPI 데이터 — 단일 수종 시계열 깊이 ⭐ NEW
+- 시계열: *4 분기 (12개월) 만*. 2014-2024 깊은 시계열은 *원본 PDF 추가 다운로드 필요*.
+- 다만 *NPV 계산에는 단일 시점 가격으로 충분* (Faustmann real-price-constant 가정).
 
-### 2. Ⅶ장 미수록 수종
+### 5. 미래 가격 *예측 안 함* ⭐ NEW
+- 가이드 §6.3 의 `market_snapshot(date)` 는 *과거 lookup*. *예측 안 함*.
+- Faustmann (1849) 학술 표준: *real prices constant + 할인율로 시간가치 흡수*.
+- 시계열은 *Figure 2 시연 + 변동성 정량화* 용도.
 
-해송·삼나무·이태리포플러는 Ⅶ장 임분수확표 *없음*. 시간 예측 불가.  
-→ `growth_predict()` 가 자동 안내. `lookup_volume()` 으로 개별 나무는 가능.
+### 6. fps.kofpi.or.kr 사이트 죽음 ⭐ NEW
+- 검색 결과로 발견했지만 *DNS 해결 실패* (Non-existent domain).
+- 가이드의 KOFPI URL (`statistics_04.do`) 도 *소나무 1수종만 공개*.
+- → **진짜 출처는 `forest.go.kr` 통합자료실의 분기별 PDF 보고서**.
 
-### 3. 자작나무·백합나무 *(잠정)*
-
-PDF 원문 자체에 *(잠정)* 표시.  
-→ `growth_predict()` 가 자동 경고 반환.
-
-### 4. VWorld PNU → polygon
-
-VWorld API 키 인증 시스템 외부 문제로 보류. 다른 키 발급 또는 다드림 임상도 SHP 직접 다운로드 검토.
+### 7. VWorld PNU → polygon
+VWorld API 키 인증 시스템 트럭 문제로 보류. 다른 키 발급 또는 오프라인 임상도 SHP 직접 다운로드 검토.
 
 ---
 
-## 🛠️ 환경 설정 + 재현 방법
+## 🚀 환경 설정 + 실행 방법
 
 ### 가상환경
-
 ```powershell
-# venv 활성화 (PowerShell)
 .\.venv\Scripts\Activate.ps1
 ```
 
 ### 데이터 재생성 (처음부터)
-
 ```powershell
-# 1. KAU 시세
-python module_bd/src/kau_api.py
+# Module B
+python module_bd/src/yield_parse.py          # Ⅱ장 (16,163 개)
+python module_bd/src/yield_table_parse.py    # Ⅶ장 (576 행)
+python module_bd/src/growth_predict.py       # 함수 테스트
 
-# 2. 법제처 별표
-python module_bd/src/legal_api.py
-
-# 3. Ⅱ장 입목수간재적표 (16,163 값)
-python module_bd/src/yield_parse.py
-
-# 4. Ⅶ장 임분수확표 (576 행) ⭐ 모듈 B 핵심
-python module_bd/src/yield_table_parse.py
-
-# 5. 함수 테스트
-python module_bd/src/growth_predict.py
-```
-
-### 진단 도구 (필요시)
-
-```powershell
-python module_bd/src/pdf_structure.py    # PDF 장 헤더 + 키워드 검색
-python module_bd/src/cell_debug.py       # 특정 페이지 셀 구조 확인
-python module_bd/src/page_debug.py       # 페이지 매핑 검증
+# Module D
+python module_bd/src/kau_api.py              # KAU 시세
+python module_bd/src/legal_api.py            # 법제처 별표
+python module_bd/src/legal_rotation.py       # 별표 3 룰 ⭐ NEW
+python module_bd/src/kofpi_parse.py          # KOFPI 4분기 PDF ⭐ NEW
+python module_bd/src/market_snapshot.py      # 종합 시장 스냅샷 ⭐ NEW
 ```
 
 ---
@@ -322,104 +321,101 @@ python module_bd/src/page_debug.py       # 페이지 매핑 검증
 
 ---
 
-## 📁 디렉토리 구조
+## 📦 디렉토리 구조
 module_bd/
-├── README.md              ← 이 문서
+├── README.md
 ├── data/
-│   ├── raw/               — API/PDF 원본
+│   ├── raw/
 │   │   ├── yield_table_2014.pdf
 │   │   ├── kau_daily/
-│   │   └── law_extracts/
-│   ├── interim/           — 정형화된 중간 결과
-│   │   ├── yield_table_full.parquet    ← Ⅱ장 통합
-│   │   ├── yield_table_stand.parquet   ← Ⅶ장 통합
-│   │   └── yield_*.csv                 ← 수종별 CSV
-│   └── processed/         — 모델 입력용 (예정)
+│   │   ├── law_extracts/
+│   │   └── kofpi_reports/        ← NEW (Day 2 후반)
+│   │       └── 2025년_{1,2,3,4}분기_원목시장가격조사_보고서.pdf
+│   ├── interim/
+│   │   ├── yield_table_full.parquet
+│   │   ├── yield_table_stand.parquet
+│   │   └── kofpi_history.parquet  ← NEW
+│   └── processed/
+│       └── rotation_age.json      ← NEW
 ├── src/
-│   ├── kau_api.py              ← Module D: KAU 시세
-│   ├── legal_api.py            ← Module D: 법제처 별표
-│   ├── yield_parse.py          ← Ⅱ장 추출
-│   ├── yield_parse_small.py    ← Ⅱ장 작은 표 (DRAFT)
-│   ├── yield_table_parse.py    ← Ⅶ장 추출 ⭐
-│   ├── growth_predict.py       ← lookup_volume + growth_predict ⭐
-│   ├── pdf_structure.py        ← 진단 도구
-│   ├── cell_debug.py           ← 진단 도구
-│   └── page_debug.py           ← 진단 도구
-├── notebooks/             — 탐색·분석용 Jupyter (예정)
-├── scrapers/              — Scrapy 프로젝트 (예정)
-└── tests/                 — 단위 테스트 (예정)
+│   ├── kau_api.py
+│   ├── legal_api.py
+│   ├── legal_rotation.py          ← NEW
+│   ├── yield_parse.py
+│   ├── yield_table_parse.py
+│   ├── growth_predict.py
+│   ├── kofpi_parse.py             ← NEW
+│   ├── kofpi_diagnose.py          ← NEW (학습 기록)
+│   ├── kofpi_diagnose_text.py     ← NEW (학습 기록)
+│   ├── fps_diagnose.py            ← NEW (실패 기록)
+│   └── market_snapshot.py         ← NEW
+├── notebooks/
+├── scrapers/
+└── tests/
 
 ---
 
-## 📚 학습 메모
+## 💡 학습 메모
+
+### KOFPI 데이터 추출의 진짜 통찰 ⭐ NEW (Day 2 후반)
+1. **가이드의 KOFPI URL (`statistics_04.do`) 은 소나무 1수종만 공개**. 7 수종 데이터는 *분기별 PDF 보고서*에 있음.
+2. **fps.kofpi.or.kr 사이트 죽음** (DNS 해결 실패). 검색 결과는 살아있는 듯 보이지만 *2026-05 시점 사이트 없음*.
+3. **분기별 등급 구성 변화**: Q3 부터 편백·삼나무 *3등급 → 원료재급* 으로 형식 변경. 시장 조사 방식 변화 반영.
+4. **수종별 가격 22-47% 차이**: 가이드는 수종 차원 안 요구하지만 *현실에서는 필수*.
+5. **미래 가격 예측 안 함**: Faustmann 학술 표준 + 가이드의 `market_snapshot(date)` 도 *과거 lookup*. 시계열은 *시연 + 변동성 맥락*.
+
+### PDF 파싱 — KOFPI 보고서 패턴
+- *수종명이 그 수종 등급들의 *중간 행 자리* 에 위치* (PDF 셀 세로 가운데 정렬 결과)
+- *수종 영역 결정 알고리즘* (보정값 ±2/±3) 보다 **명시적 매핑** (분기별 등급 리스트) 이 *훨씬 정확*
+- substring 함정: "리기다소나무" 안에 "소나무" 포함 → `if sp in line` 으로 잘못 매칭
 
 ### data.go.kr OpenAPI
-- 마스터키 1개로 *활용신청 완료된 API* 모두 호출 가능
-- URL 파라미터 이름은 `serviceKey`
-- KAU 데이터는 *영업일 1일 + 오후 1시* 이후 업데이트. 주말·공휴일 영향 큼
-- 정확한 엔드포인트는 `apis.data.go.kr/.../getXXXX` 상세 페이지에서 *상세기능 목록* 확인 필수
-- KAU25(2025년 vintage)만 활발히 거래되고 KOC(산림 오프셋)는 거래량 0인 경우 다수
+- 마스터키 1개로 *신청 완료된 API* 모두 호출 가능
+- URL 파라미터는 `serviceKey`
+- KAU 데이터는 *영업일 1일 + 오후 1일* 이후 업데이트. 주말·공휴일 영향 큼
 
 ### 법제처 OpenAPI
-- URL 파라미터 이름은 `OC` (정우 OC: `nacave`)
+- URL 파라미터는 `OC` (정우 OC: `nacave`)
 - 응답은 *XML 형식*
-- 별표는 *PDF/HWP 파일링크* 로만 제공 (텍스트로는 안 풀어줌)
-- 별표 번호가 *법령 본문 별표* 와 *서식 별표* 에 *독립적으로 매겨져 중복* 발생 → 제목 키워드 필터 필요
-- 별표 3 PDF는 `flSeq=161301293` (2026-02-01 시행 기준)
+- 별표는 *PDF/HWP 파일링크* 로만 제공 (텍스트로 직접 안 옴)
+- 별표 3 PDF: `flSeq=161301293` (2026-02-01 시행 기준)
 
 ### camelot + PDF
-- 격자 선이 있는 표라도 camelot이 *셀 구분선을 못 보는* 경우 흔함
-- `flavor="lattice"` 가 안 되면 `"stream"` 시도
-- **PDF 안에서 표마다 셀 인식 방식이 다름:**
-  - Ⅱ장 첫 페이지 (수고 6-28m): lattice + 셀 안 뭉침 후처리 (3 가지 패턴)
-  - Ⅱ장 둘째 페이지 (수고 30-52m): lattice 실패 → stream
-  - Ⅶ장: lattice + 개별 셀 분리 (후처리 거의 불필요)
-- 임시 PDF 파일 정리 시 Windows에서 *PermissionError* 발생 가능 (백신 충돌, 무시 가능)
-- **책 페이지 번호 ≠ PDF 페이지 번호** — 항상 `pdfplumber`로 텍스트 직접 확인 권장
-
-### PDF 셀 split 패턴 3가지 (Ⅱ장 첫 페이지)
-- **패턴 A** (p.14 등): 셀 안에 `\n` 으로 값마다 분리 (372 줄)
-- **패턴 B** (p.22 등): 셀 안에 `\n` 으로 행 구분 + 공백으로 행 안 값 구분
-- **패턴 C** (작은 표 p.30 등): 빈 셀 자리에 `\u3000` (전각공백) 표시
-
-### 환경 운영
-- VS Code에서 New File 만들 때 *대상 폴더를 먼저 클릭*해서 선택. 아니면 엉뚱한 위치에 생성됨
-- PowerShell 첫 venv 활성화 시 `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` 필요
-- `.env`를 *절대 채팅·스크린샷·commit에 노출 금지*. 노출 시 즉시 재발급
-- `git rm --cached <file>`은 *디스크는 안 지우고 staging에서만 제외* — 데이터 파일 제외할 때 유용
-- PowerShell 스크롤백 한계 ~3000 줄. 큰 출력은 `python script.py > output.txt` 로 파일 저장
-- Python stdout 인코딩 UTF-8 강제: `$env:PYTHONIOENCODING="utf-8"` (한글 출력 깨짐 방지)
+- 격자 줄이 있는 PDF: `flavor="lattice"` 우선
+- 격자 없으면 `flavor="stream"` 시도
+- KOFPI PDF: pdfplumber 텍스트 추출 + 정규식 패턴이 *훨씬 정확*
 
 ---
 
 ## 🔄 변경 이력
 
-### Day 2 (2026-05-13)
-- ⭐ **Ⅶ장 임분수확표 발견** (p.191-215) — Day 1 의 Ⅱ장 추출만으로는 모듈 B 가이드 요구 사항 미충족
-- ⭐ `growth_predict()` 함수 완성 — 576 행 임분수확표 위에서 작동
-- ⭐ `lookup_volume()` 함수 완성 — 16,163 값 입목수간재적표 위에서 작동
-- Ⅱ장 둘째 페이지 (수고 30-52m) 추출 완성 — stream flavor 필요
-- 자작나무 NaN 8개 = 실제 빈 셀로 검증 (작은 DBH × 큰 수고 = 물리적 불가능)
-- 작은 표 3개 (해송·삼나무·이태리포플러) DRAFT 라벨 + 영향 평가
+### Day 2 후반 (2026-05-13 오후)
+- ⭐ **rotation_age()** — 산림자원법 별표 3 룰베이스 (8 카테고리 × 2 소유 = 16 룰)
+- ⭐ **KOFPI 4분기 PDF 추출** — 2025년 1-4분기 보고서 → 390 행 시계열
+- ⭐ **market_snapshot(date)** — 가이드 §6.3 시그니처 정확 매칭 + 수종별 확장
+- ⭐ **fps.kofpi.or.kr 진단** — 사이트 죽음 확인 + 진짜 출처 발견
+- ⭐ **growth_predict() 리팩토링** — 가이드 §8.2 시그니처 (`forecast_years`, `climate_scenario`)
+
+### Day 2 전반 (2026-05-13 오전)
+- ✅ **Ⅶ장 임분수확표 발견** (p.191-215) — 모듈 B 핵심
+- ✅ `growth_predict()` 첫 버전 완성
+- ✅ Ⅱ장 두번째 페이지 (수고 30-52m) 추출 — stream flavor
 
 ### Day 1 (2026-05-12)
-- data.go.kr, 법제처, VWorld API 키 발급
-- `kau_api.py`, `legal_api.py` 완성
-- 임분수확표 PDF 다운로드 + 구조 분석
-- Ⅱ장 입목수간재적표 22/25 케이스 추출
-- PDF 페이지 매핑 발견 (책 page + 6)
-- camelot 셀 패턴 3가지 발견
+- ✅ data.go.kr, 법제처, VWorld API 키 발급
+- ✅ `kau_api.py`, `legal_api.py` 완성
+- ✅ 임분수확표 PDF 다운로드 + 구조 분석
+- ✅ Ⅱ장 임목재적표 22/25 케이스 추출
 
 ---
 
-## 🚧 다음 작업 (우선순위)
+## 📌 다음 작업 (우선순위)
 
-1. **별표 3 → 기준벌기령 룰베이스** (모듈 D, 30-60분)
+1. **GitHub 원격 repo + 팀 공유** (오프셔, 15-30분) ⭐ 팀 핸드오프 핵심
 2. **shared/schemas.py — 팀 인터페이스 합의** (Pydantic 모델, 30분)
-3. **KOFPI 원목가격 스크래핑** (모듈 D, 1-2시간)
-4. **산악기상 시계열** (모듈 B 보정, 2-3시간)
-5. **표준품셈 → 비용 함수** (모듈 D, 1-2시간)
-6. **산림탄소상쇄 RAG 코퍼스** (모듈 D + E, 2-3시간)
-7. **모듈 A 위성 GEE** (모듈 A, 1주+)
-8. **GitHub 원격 repo + 팀 공유** (인프라, 30분)
-9. **VWorld 재시도** (외부 시스템 의존, 추후)
+3. **fetch_kau_price() 를 market_snapshot() 에 통합** (15분) — KAU/KOC 빈 칸 채우기
+4. **표준품셈 → 비용 함수** (모듈 D, 1-2시간)
+5. **산림탄소상쇄 RAG 코퍼스** (모듈 D + E, 2-3시간)
+6. **산악기상 시계열** (모듈 B 보정, 2-3시간)
+7. **모듈 A 위성 GEE** (1주+)
+8. **VWorld 재시도** (외부 시스템 의존, 추후)
