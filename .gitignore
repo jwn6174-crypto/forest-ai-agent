@@ -50,6 +50,29 @@ desktop.ini
 !data/sample/*.csv
 !shared/schemas/*.json
 
+# ===== 모듈 B/D 학술 자산 명시적 허용 =====
+# 통합 데이터만 포함 (중간 산출물·수종별 개별 CSV 는 제외)
+
+# yield 통합 데이터 (Day 1-2)
+!module_bd/data/interim/yield_table_full.parquet
+!module_bd/data/interim/yield_table_stand.parquet
+
+# KOFPI 통합 데이터 (Day 2 후반)
+!module_bd/data/interim/kofpi_history.parquet
+!module_bd/data/interim/kofpi_history.csv
+!module_bd/data/interim/kofpi_transport.parquet
+!module_bd/data/interim/kofpi_transport.csv
+!module_bd/data/interim/kofpi_skidding.parquet
+!module_bd/data/interim/kofpi_skidding.csv
+
+# 별표 3 룰베이스 (Day 2 후반)
+!module_bd/data/processed/
+!module_bd/data/processed/*.json
+
+# 노임 데이터 (대한건설협회 통계, Day 2 후반)
+!module_bd/data/raw/wage/
+!module_bd/data/raw/wage/*.json
+
 # 로컬 다운로드 폴더
 downloads/
 data/raw/
@@ -63,6 +86,11 @@ models/*.pkl
 # 로그
 *.log
 logs/
+
+# 진단 임시 출력
+debug_*.txt
+debug_output.txt
+debug_yield_191.txt
 
 # OS 임시 파일
 *.swp
