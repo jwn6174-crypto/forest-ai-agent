@@ -16,9 +16,13 @@ import numpy as np
 from pathlib import Path
 from functools import lru_cache
 
+import json
+
 ROOT = Path(__file__).resolve().parents[2]
 PARQUET_VOLUME = ROOT / "module_bd" / "data" / "interim" / "yield_table_full.parquet"
 PARQUET_STAND = ROOT / "module_bd" / "data" / "interim" / "yield_table_stand.parquet"
+
+CARBON_PATH = ROOT / "module_bd" / "data" / "raw" / "carbon" / "carbon_uptake_2003.json"
 
 # 작은 표 수종 (DRAFT, 입목수간재적표)
 SMALL_TABLE_SPECIES = {"해송", "삼나무", "이태리포플러"}
@@ -122,6 +126,118 @@ def _load_stand_table() -> pd.DataFrame:
     print(f"📊 임분수확표 로드: {len(df):,} 행 (Ⅶ장, {df['수종'].nunique()} 수종)")
     return df
 
+# ============================================================
+# 산림 탄소흡수량 (국립산림과학원 표준)
+# ============================================================
+
+@lru_cache(maxsize=1)
+def _load_carbon_table() -> dict:
+    """국립산림과학원 표준 탄소흡수량 (tCO2/ha/yr) 로드."""
+    if not CARBON_PATH.exists():
+        print(f"⚠️  탄소흡수 데이터 없음: {CARBON_PATH}")
+        return {}
+    with open(CARBON_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    return data.get("uptake_tco2_per_ha_per_yr", {})
+
+
+# 수종 별칭 매핑 (yield_table 의 수종명 → carbon 데이터의 수종명)
+CARBON_SPECIES_ALIASES = {
+    "강원지방소나무": "강원지방소나무",
+    "중부지방소나무": "중부지방소나무",
+    "소나무": "소나무",
+    "잣나무": "잣나무",
+    "낙엽송": "낙엽송",
+    "리기다소나무": "리기다소나무",
+    "편백": "편백",
+    "신갈나무": "참나무",      # 참나무류로 매핑
+    "굴참나무": "참나무",
+    "상수리나무": "참나무",
+    "자작나무": None,           # 데이터 없음
+    "백합나무": None,           # 데이터 없음
+}
+
+
+def _lookup_carbon_uptake(species: str, age: int) -> dict:
+    """
+    수종·임령별 연간 탄소흡수량 lookup (tCO2/ha/yr).
+    
+    국립산림과학원 표준 데이터는 10년 단위 (10/20/30/40/50/60).
+    중간 임령은 *선형 보간*.
+    
+    Returns:
+        dict: {
+            "carbon_uptake_rate": float | None,  # tCO2/ha/yr
+            "method": str,                        # "exact" | "interpolated" | "extrapolated"
+            "warning": str | None,
+        }
+    """
+    carbon_table = _load_carbon_table()
+    
+    # 수종 매핑
+    carbon_species = CARBON_SPECIES_ALIASES.get(species)
+    if carbon_species is None:
+        return {
+            "carbon_uptake_rate": None,
+            "method": "no_data",
+            "warning": f"'{species}' 의 탄소흡수 데이터 없음 (국립산림과학원 표준)",
+        }
+    
+    species_data = carbon_table.get(carbon_species, {})
+    if not species_data:
+        return {
+            "carbon_uptake_rate": None,
+            "method": "no_data",
+            "warning": f"'{carbon_species}' 데이터 카본 테이블에 없음",
+        }
+    
+    # _note 제외하고 임령만 추출
+    age_data = {int(k): v for k, v in species_data.items() if k.isdigit()}
+    
+    if not age_data:
+        return {
+            "carbon_uptake_rate": None,
+            "method": "no_data",
+            "warning": f"'{carbon_species}' 의 임령별 데이터 없음",
+        }
+    
+    available_ages = sorted(age_data.keys())
+    
+    # 정확 일치
+    if age in age_data:
+        return {
+            "carbon_uptake_rate": age_data[age],
+            "method": "exact",
+            "warning": None,
+        }
+    
+    # 범위 밖 (extrapolation)
+    if age < available_ages[0]:
+        return {
+            "carbon_uptake_rate": age_data[available_ages[0]],
+            "method": "extrapolated_below",
+            "warning": f"임령 {age}년 < 가장 어린 데이터 {available_ages[0]}년. "
+                       f"{available_ages[0]}년 값 사용 ({age_data[available_ages[0]]})",
+        }
+    if age > available_ages[-1]:
+        return {
+            "carbon_uptake_rate": age_data[available_ages[-1]],
+            "method": "extrapolated_above",
+            "warning": f"임령 {age}년 > 가장 늙은 데이터 {available_ages[-1]}년. "
+                       f"{available_ages[-1]}년 값 사용 ({age_data[available_ages[-1]]})",
+        }
+    
+    # 선형 보간
+    lower_age = max(a for a in available_ages if a < age)
+    upper_age = min(a for a in available_ages if a > age)
+    w = (age - lower_age) / (upper_age - lower_age)
+    rate = age_data[lower_age] + w * (age_data[upper_age] - age_data[lower_age])
+    
+    return {
+        "carbon_uptake_rate": round(rate, 2),
+        "method": f"interpolated_{lower_age}-{upper_age}",
+        "warning": None,
+    }
 
 def _lookup_stand(df: pd.DataFrame, species: str, site_index: int, age: int) -> dict:
     """
@@ -392,6 +508,11 @@ def growth_predict(
         if species_warning:
             warns.append(species_warning)
         
+        # 탄소흡수량 lookup ⭐ NEW
+        carbon = _lookup_carbon_uptake(species, future_age)
+        if carbon["warning"]:
+            warns.append(carbon["warning"])
+        
         trajectory.append({
             "dt": dt,
             "age": int(stand["age"]),
@@ -401,7 +522,9 @@ def growth_predict(
             "dominant_height": stand["dominant_height_m"], # m
             "n_per_ha": stand["n_per_ha"],
             "tmai_m3_per_ha_yr": stand["tmai_m3_per_ha_yr"],
-            "grade_distribution": None,  # NFI Weibull 미구현 (Module A 협업 필요)
+            "grade_distribution": None,  # NFI Weibull 미구현 (Module A 작업 필요)
+            "carbon_uptake_rate": carbon["carbon_uptake_rate"],  # tCO2/ha/yr ⭐ NEW
+            "carbon_method": carbon["method"],                    # exact|interpolated|extrapolated
             "climate_scenario": climate_scenario,
             "site_index_used": stand["site_index"],
             "method": stand["method"],
@@ -431,9 +554,11 @@ if __name__ == "__main__":
         if "error" in t:
             print(f"   dt={t['dt']:>2}: ❌ {t['warning']}")
             continue
+        carbon_str = f"C={t['carbon_uptake_rate']:>5.2f}" if t.get('carbon_uptake_rate') else "C=N/A "
         print(f"   dt={t['dt']:>2}, 임령={t['age']:>2}년: "
               f"V={t['volume']:>6.1f} m³/ha, DBH={t['dbh']:>5.1f}cm, "
-              f"H={t['height']:>4.1f}m, N={t['n_per_ha']:>4.0f}/ha")
+              f"H={t['height']:>4.1f}m, N={t['n_per_ha']:>4.0f}/ha, "
+              f"{carbon_str} tCO2/ha/yr")
     
     # 테스트 2: 강원지방소나무 (충북 보은 주력)
     print("\n📌 충북 보은 주력: 강원지방소나무 SI=14 age=30 forecast=[0,10,20,30]")
@@ -445,8 +570,10 @@ if __name__ == "__main__":
         if "error" in t:
             print(f"   dt={t['dt']:>2}: ❌ {t['warning']}")
             continue
+        carbon_str = f"C={t['carbon_uptake_rate']:>5.2f}" if t.get('carbon_uptake_rate') else "C=N/A "
         print(f"   dt={t['dt']:>2}, 임령={t['age']:>2}년: "
-              f"V={t['volume']:>6.1f} m³/ha, DBH={t['dbh']:>5.1f}cm")
+              f"V={t['volume']:>6.1f} m³/ha, DBH={t['dbh']:>5.1f}cm, "
+              f"{carbon_str} tCO2/ha/yr")
     
     # 테스트 3: 보간 (forecast_years 가 표에 없는 임령 만듦)
     print("\n📌 보간: 강원지방소나무 SI=14 age=27 forecast=[3, 8, 13]")
