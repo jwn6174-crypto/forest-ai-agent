@@ -73,6 +73,21 @@ desktop.ini
 !module_bd/data/raw/wage/
 !module_bd/data/raw/wage/*.json
 
+# 묘목 단가 (산림청 공식 2025, Day 3)
+!module_bd/data/raw/seedling/
+!module_bd/data/raw/seedling/*.json
+
+# 탄소 흡수량 (국립산림과학원 표준, Day 3)
+!module_bd/data/raw/carbon/
+!module_bd/data/raw/carbon/*.json
+
+# 산림탄소상쇄 PDF (산림청 공공저작물, 11 PDF, Day 3)
+!module_bd/data/raw/carbon_offset/
+!module_bd/data/raw/carbon_offset/**/*.pdf
+
+# RAG 청크 JSONL (Day 3)
+!module_bd/data/interim/carbon_chunks.jsonl
+
 # 로컬 다운로드 폴더
 downloads/
 data/raw/
