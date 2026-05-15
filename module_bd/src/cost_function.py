@@ -6,7 +6,7 @@ cost_function.py
 - harvest:    산림사업 표준품셈 (산림청 고시 제2025-82호) p.59-60 + 벌목부 시중노임
 - skidding:   KOFPI 분기별 보고서 소운반비 (Q4 2025 기준)
 - transport:  KOFPI 분기별 보고서 대운반비 (Q4 2025 기준)
-- regen:      산림사업 표준품셈 p.73 (사방조림) + 보통/특별인부 시중노임
+- regen:      산림사업 표준품셈 p.73 (사방조림) + 보통/특별인부 시중노임 + 산림청 2025 묘목가격 고시
 - 상차비:     KOFPI 보고서 (skidding/transport 공통)
 
 가이드 §7.1 시그니처 정확 매칭. 희도 NPV 계산에서 직접 호출 가능.
@@ -76,8 +76,35 @@ LOADING_CHARGE = 5800
 # 5. 조림 (산림사업 표준품셈 p.73, 사방조림 1ha 기준)
 REGEN_SPECIAL_WORKERS_PER_HA = 1.33
 REGEN_NORMAL_WORKERS_PER_HA = 20
-REGEN_SEEDLING_PER_HA = 4000           # 4,000본/ha
-REGEN_SEEDLING_UNIT_COST = 800         # 1년생 묘목 (산림용 종자·묘목 고시 기준 추정)
+REGEN_SEEDLING_PER_HA = 4000           # 4,000본/ha (사방조림 표준)
+
+# ============================================================
+# 묘목 단가 — 산림청 2025년 공식 (산림자원법 시행령 제16조)
+# ============================================================
+SEEDLING_PRICES = {
+    # 침엽수 (1-1 조림 표준)
+    "강원지방소나무": 422,
+    "중부지방소나무": 422,
+    "소나무": 422,
+    "잣나무": 530,           # 잣나무는 2-1 표준
+    "낙엽송": 714,
+    "리기다소나무": 388,
+    "리기테다소나무": 390,
+    "편백": 665,
+    "삼나무": 699,
+    
+    # 활엽수 (1-1 조림 표준)
+    "상수리나무": 1101,
+    "신갈나무": 1101,        # 참나무류 매핑 (상수리 1-1)
+    "굴참나무": 1101,        # 참나무류 매핑
+    "참나무류": 1101,
+    "자작나무": 1093,
+    "백합나무": 1219,
+    "물푸레나무": 884,
+}
+
+# 기본 (수종 불명 시)
+REGEN_SEEDLING_UNIT_COST_DEFAULT = 550  # 7 수종 평균 (산림청 2025 공식)
 REGEN_SUPPLY_COST_PER_HA = 200000      # 비료·운반비 추정 (PDF: "별도 계상", 추후 정밀화)
 
 # 6. 간접비 (가이드 §7.1)
@@ -122,6 +149,7 @@ def cost_function(
     action: str,
     skidding_distance_m: float = 500.0,
     slope_class: str = "중",
+    species: str = None,
 ) -> dict:
     """
     임지·시나리오별 비용 추정 (가이드 §7.1).
@@ -140,6 +168,10 @@ def cost_function(
         집재 거리 (m). 기본 500m (KOFPI 표 시작값).
     slope_class : str, optional
         경사도 분류 "완" | "중" | "급". 기본 "중" (15-30°).
+    species : str, optional
+        수종명 (예: "강원지방소나무", "잣나무"). 
+        제공 시 수종별 묘목 단가 (산림청 2025 공식) 사용.
+        미제공 시 평균 단가 (550원/본) 사용.
     
     Returns
     -------
@@ -161,9 +193,10 @@ def cost_function(
     ...     volume_m3=280, area_ha=1.0,
     ...     distance_to_road_km=15, action="clearcut",
     ...     skidding_distance_m=800, slope_class="중",
+    ...     species="강원지방소나무",
     ... )
     >>> result["total"]
-    11_500_000  # 약 1,150만원
+    20_633_628  # 약 2,063만원
     """
     if action not in ["clearcut", "thinning", "planting"]:
         raise ValueError(f"action 은 'clearcut', 'thinning', 'planting' 중 하나여야 함 (받음: {action})")
@@ -204,11 +237,17 @@ def cost_function(
     if action in ["clearcut", "planting"]:
         special_wage = REGEN_SPECIAL_WORKERS_PER_HA * WAGES["특별인부"] * area_ha
         normal_wage = REGEN_NORMAL_WORKERS_PER_HA * WAGES["보통인부"] * area_ha
-        seedling_cost = REGEN_SEEDLING_PER_HA * REGEN_SEEDLING_UNIT_COST * area_ha
+        # 묘목 단가 (수종별, 산림청 2025 공식)
+        if species and species in SEEDLING_PRICES:
+            seedling_unit = SEEDLING_PRICES[species]
+        else:
+            seedling_unit = REGEN_SEEDLING_UNIT_COST_DEFAULT
+        seedling_cost = REGEN_SEEDLING_PER_HA * seedling_unit * area_ha
         supply_cost = REGEN_SUPPLY_COST_PER_HA * area_ha
         regen_total = (special_wage + normal_wage + seedling_cost + supply_cost) * surcharge
         breakdown["regen"] = round(regen_total)
         unit_costs["regen_per_ha"] = round(regen_total / area_ha) if area_ha > 0 else 0
+        unit_costs["seedling_unit"] = seedling_unit  # 시연용
     
     # 합계
     subtotal = sum(breakdown.values())
@@ -226,16 +265,17 @@ def cost_function(
             "harvest": "산림사업 표준품셈 (산림청 고시 제2025-82호) p.59-60 + 대한건설협회 벌목부 노임",
             "skidding": "KOFPI 분기별 원목시장가격조사 보고서 소운반비 (2025 Q4 침엽수)",
             "transport": "KOFPI 분기별 원목시장가격조사 보고서 대운반비 (2025 Q4 침엽수 5톤)",
-            "regen": "산림사업 표준품셈 p.73 사방조림 + 대한건설협회 보통/특별인부 노임",
+            "regen": "산림사업 표준품셈 p.73 사방조림 + 대한건설협회 노임 + 산림청 2025 묘목가격 고시",
             "loading": "KOFPI 분기별 보고서 상차비 (2025 Q4 침엽수)",
             "admin_overhead": "가이드 §7.1 (0.15)",
             "wages_period": "2025년 하반기 (2025-09-01 ~ 2025-12-31)",
         },
         "limitations": [
-            "묘목 단가 (800원/본) 는 *추정값* — 정밀화 필요",
+            "묘목 단가: 산림청 *공식 조림용* 가격 — 시중 가격은 1.2-2배 가능",
             "보육·간벌 작업의 *재투입* 비용 미반영 (개벌 단순화)",
             "경사도 외 할증 (이동거리, 작업시기 등) 미반영",
             "KOFPI 운반비는 *전국 평균* — 충북 보은 지역 특화 X",
+            "비료·운반비 200,000원/ha 는 *추정값* (표준품셈 '별도 계상')",
         ],
     }
 
@@ -259,6 +299,7 @@ if __name__ == "__main__":
         action="clearcut",
         skidding_distance_m=800,
         slope_class="중",
+        species="강원지방소나무",
     )
     print(f"   📦 항목별 비용:")
     for item, cost in result["breakdown"].items():
@@ -269,6 +310,7 @@ if __name__ == "__main__":
     print(f"   간접비(15%): {result['admin_overhead_amount']:>12,}원")
     print(f"   ═" * 20)
     print(f"   ✅ 총 비용:  {result['total']:>12,}원")
+    print(f"   📌 묘목 단가: {result['unit_costs']['seedling_unit']}원/본 (강원지방소나무, 산림청 2025)")
     
     # 테스트 2: 간벌 (수확 50%)
     print("\n[테스트 2] 간벌 (140m³, 1ha)")
@@ -292,6 +334,7 @@ if __name__ == "__main__":
             volume_m3=280, area_ha=1.0,
             distance_to_road_km=dist_km, action="clearcut",
             skidding_distance_m=800, slope_class="중",
+            species="강원지방소나무",
         )
         print(f"   도로 {dist_km:>3}km: 총 {r['total']:>11,}원  "
               f"(운반 단가: {r['unit_costs']['transport_per_m3']:,}원/m³)")
@@ -304,9 +347,33 @@ if __name__ == "__main__":
             volume_m3=280, area_ha=1.0,
             distance_to_road_km=15, action="clearcut",
             skidding_distance_m=800, slope_class=slope,
+            species="강원지방소나무",
         )
         print(f"   {label:>8} ({slope}): 총 {r['total']:>11,}원 "
               f"(할증 {r['slope_surcharge_applied']*100:.0f}%)")
+    
+    # 테스트 5: 수종별 조림비용 차이 (산림청 2025 공식 묘목가격)
+    print("\n[테스트 5] 수종별 조림비용 차이 (개벌 200m³, 1ha, 15km)")
+    print("-" * 60)
+    for sp in ["강원지방소나무", "잣나무", "낙엽송", "리기다소나무", "편백", "상수리나무", "백합나무"]:
+        r = cost_function(
+            volume_m3=200, area_ha=1.0,
+            distance_to_road_km=15, action="clearcut",
+            skidding_distance_m=800, slope_class="중",
+            species=sp,
+        )
+        seed = r["unit_costs"]["seedling_unit"]
+        print(f"   {sp:>12} ({seed:>5}원/본): regen {r['breakdown']['regen']:>11,}원, "
+              f"총 {r['total']:>11,}원")
+    
+    # 수종 미제공 시 기본값
+    r = cost_function(
+        volume_m3=200, area_ha=1.0,
+        distance_to_road_km=15, action="clearcut",
+        skidding_distance_m=800, slope_class="중",
+    )
+    print(f"   {'(미제공)':>12} ({r['unit_costs']['seedling_unit']:>5}원/본, 평균): "
+          f"regen {r['breakdown']['regen']:>11,}원, 총 {r['total']:>11,}원")
     
     print()
     print("=" * 60)
