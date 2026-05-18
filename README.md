@@ -4,7 +4,7 @@
 > 산주가 자연어로 묻는 *산림 경영 의사결정* 을 AI 가 *데이터+방법론* 기반으로 답변
 
 **기간:** 2026-05-12 ~ 진행 중
-**현재 상태:** Day 3 마감 (36 commits, 7 DECISIONS, 5/5 진짜 PDF 데이터)
+**현재 상태:** Day 4 마감 (42 commits, 8 DECISIONS, 5/5 진짜 PDF 데이터, 단위 테스트 45개)
 
 ---
 
@@ -26,30 +26,38 @@
 
 | 모듈 | 담당자 | 역할 | 상태 |
 |---|---|---|---|
-| **A** | 정우 + 민석 | 위성 데이터 (Google Earth Engine) | ⏳ 미시작 |
-| **B** | 정우 + 민석 | 임분 성장 예측 + 탄소 흡수 | ✅ 핵심 완성 |
+| **A** | 민석 | 위성 데이터 (Google Earth Engine), NFI 표본점 수집 | ⏳ 미시작 |
+| **B** | 나정우 | 임분 성장 예측 + 탄소 흡수 | ✅ 핵심 완성 |
 | **C** | 희도 | Faustmann NPV 계산 | 🔄 진행 중 |
-| **D** | 정우 + 민석 | 원목 시장가격 + 법령 + 비용 + RAG | ✅ 핵심 완성 |
+| **D** | 나정우 | 원목 시장가격 + 법령 + 비용 + RAG | ✅ 핵심 완성 |
 | **E** | 하수범 | Streamlit + LLM 에이전트 | 🔄 진행 중 |
+
+> 모듈 B/D 는 NFI 실측 데이터가 필요한 일부 작업(기후 보정 회귀, 등급분포 Weibull)에서
+> 모듈 A(민석)와 협업한다. NFI 수집은 모듈 A 책임, 그 데이터를 받아 회귀·fit 하는 것은 모듈 B/D 책임.
 
 ---
 
 ## 📂 모듈별 상세 문서
 
-- [**모듈 B/D — 성장 예측 + 시장·정책**](module_bd/README.md) ⭐ (정우 작업, 9/11 완성 82%)
+- [**모듈 B/D — 성장 예측 + 시장·정책**](module_bd/README.md) ⭐ (나정우 작업)
 
 ---
 
-## 🏆 Day 1-3 성취 (정우 작업)
+## 🏆 Day 1-4 성취 (나정우 작업 — 모듈 B/D)
 
 ### 함수 완성 (가이드 §8.2)
-- ✅ `growth_predict()` — 11 수종 임분 성장 + 탄소 흡수 ⭐ Day 3
+- ✅ `growth_predict()` — 11 수종 임분 성장 + 탄소 흡수
 - ✅ `market_snapshot()` — 7 수종 × 6 등급 + KAU
-- ✅ `cost_function()` — 5/5 진짜 PDF 데이터 ⭐ Day 3 정밀화
+- ✅ `cost_function()` — 5/5 진짜 PDF 데이터
 - ✅ `rotation_age()` — 법정 기준벌기령 (별표 3)
 - ✅ `lookup_volume()` — 개별 나무 재적
 - ✅ `fetch_kau_price()` — KAU 일별
 - ✅ `search_law()` — 법령 검색
+
+### 단위 테스트 (가이드 §9.1) ⭐ Day 4
+- ✅ 45개 테스트, 함수 5개 커버 (`pytest module_bd/tests/`)
+- ✅ growth_predict 8 · cost_function 11 · lookup_volume 8 · market_snapshot 8 · rotation_age 10
+- ✅ 검증 테스트(가이드·법령 보증값) + 회귀 테스트(현재 출력 기준선) 구분
 
 ### 학술 자산 (5/5 진짜 데이터)
 - ✅ 임분수확표 통합 (16,163 행 + 576 행)
@@ -57,13 +65,15 @@
 - ✅ KAU 일별 시계열 + WTA (박2020)
 - ✅ 산림사업 표준품셈 + 대한건설협회 노임
 - ✅ 산림자원법 별표 3 룰베이스
-- ✅ 국립산림과학원 탄소흡수량 (3,212 표본) ⭐ Day 3
-- ✅ 산림청 2025 묘목 단가 (15 수종) ⭐ Day 3
-- ✅ 산림탄소상쇄 RAG (11 PDF, 281 청크) ⭐ Day 3
+- ✅ 국립산림과학원 탄소흡수량 (3,212 표본)
+- ✅ 산림청 2025 묘목 단가 (15 수종)
+- ✅ 산림탄소상쇄 RAG (11 PDF, 281 청크)
+- 🔄 산악기상 시계열 — 코드 완성, 보은 6 관측소 중 2개 수집 완료 (Day 4 진행 중)
 
-### 학술 결정 (DECISIONS.md, 7 항목)
+### 학술 결정 (DECISIONS.md, 8 항목)
 - D1-D4: KOFPI · 표준품셈 · cost_function · schemas (Day 2)
-- D5-D7: carbon_uptake · seedling · RAG corpus (Day 3) ⭐
+- D5-D7: carbon_uptake · seedling · RAG corpus (Day 3)
+- D8: 산악기상 데이터 소스·수집 설계 (Day 4, 진행 중)
 
 ---
 
@@ -85,14 +95,20 @@ python module_bd/src/kofpi_parse.py            # 원목가격
 python module_bd/src/cost_function.py          # 비용 계산
 python module_bd/src/growth_predict.py         # 성장 예측 + 탄소
 python module_bd/src/carbon_offset_chunk.py    # RAG 청크
+
+# 5. 단위 테스트 실행
+pytest module_bd/tests/
+
+# 6. 산악기상 수집 (Day 4 진행 중 — 일일 호출 한도로 며칠에 나눠 수집)
+python module_bd/src/mt_weather_collect.py
 ```
 
 ---
 
 ## 👥 팀
 
-- **정우** (정우나, Kookmin Univ. 산림환경시스템) — 모듈 A, B, D, 데이터 인프라
-- **민석** — 모듈 A, B 작업
+- **나정우** — 모듈 B (성장 예측 + 탄소), 모듈 D (시장·법령·비용·RAG)
+- **민석** — 모듈 A (위성 GEE, NFI 표본점 수집)
 - **희도** — 모듈 C (Faustmann NPV, NRF 과제 2022S1A5A8051754)
 - **하수범** — 모듈 E (Streamlit + LLM 에이전트)
 
@@ -103,16 +119,17 @@ python module_bd/src/carbon_offset_chunk.py    # RAG 청크
 ## 📚 학술 기반
 
 - Faustmann (1849) — *Land Expectation Value*
-- 산림자원법 조성 및 관리에 관한 법률 시행규칙 (2023 개정)
+- 산림자원의 조성 및 관리에 관한 법률 시행규칙 (2023 개정)
 - 박2020 — 산주 WTA 의지가격 (17,039원/tCO2)
 - KOFPI 분기별 원목시장가격조사 (산림청 고시 제2025-22호)
-- 국립산림과학원 탄소흡수량 (2003 개발, 2013/2024 개정) ⭐ Day 3
-- 산림청 2025년 산림용 종자·묘목가격 (시행령 제16조) ⭐ Day 3
-- 산림탄소상쇄제도 운영지침 + 8 사업유형 방법론 (2025.1.2.) ⭐ Day 3
+- 국립산림과학원 탄소흡수량 (2003 개발, 2013/2024 개정)
+- 산림청 2025년 산림용 종자·묘목가격 (시행령 제16조)
+- 산림탄소상쇄제도 운영지침 + 8 사업유형 방법론 (2025.1.2.)
+- 산림청 국립산림과학원 산악기상정보 (보은 6 관측소)
 
 ---
 
 ## 🔗 Repo
 
 - GitHub: https://github.com/jwn6174-crypto/forest-ai-agent
-- Module B/D 책임자: 정우 (jwn6174@kookmin.ac.kr)
+- Module B/D 책임자: 나정우 (jwn6174@gmail.com)
