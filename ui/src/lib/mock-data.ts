@@ -44,6 +44,12 @@ const CASE_1: ForestAnalysisResult = {
       { teukYongJae: 16, grade1: 44, grade2: 31, grade3: 6, wonJuJae: 2, wonRyoJae: 1 },
     ],
     climateScenario: "SSP2-4.5",
+    dbhTrajectory:    [24.0, 25.8, 27.4, 28.8, 29.9, 30.8, 31.5],
+    heightTrajectory: [18.2, 19.4, 20.4, 21.2, 21.8, 22.3, 22.7],
+    nPerHaTrajectory: [820,  780,  745,  715,  690,  668,  650],
+    tmaiTrajectory:   [5.62, 5.48, 5.31, 5.10, 4.86, 4.60, 4.33],
+    dataMethod: "exact",
+    dataWarning: null,
   },
   scenarios: [
     {
@@ -191,6 +197,12 @@ const CASE_2: ForestAnalysisResult = {
       { teukYongJae: 10, grade1: 39, grade2: 38, grade3: 9, wonJuJae: 3,  wonRyoJae: 1 },
     ],
     climateScenario: "SSP2-4.5",
+    dbhTrajectory:    [24.0, 25.8, 27.4, 28.8, 29.9, 30.8, 31.5],
+    heightTrajectory: [18.2, 19.4, 20.4, 21.2, 21.8, 22.3, 22.7],
+    nPerHaTrajectory: [820,  780,  745,  715,  690,  668,  650],
+    tmaiTrajectory:   [5.62, 5.48, 5.31, 5.10, 4.86, 4.60, 4.33],
+    dataMethod: "exact",
+    dataWarning: null,
   },
   scenarios: [
     {
@@ -338,6 +350,12 @@ const CASE_3: ForestAnalysisResult = {
       { teukYongJae: 7, grade1: 25, grade2: 35, grade3: 22, wonJuJae: 9,  wonRyoJae: 2 },
     ],
     climateScenario: "SSP2-4.5",
+    dbhTrajectory:    [24.0, 25.8, 27.4, 28.8, 29.9, 30.8, 31.5],
+    heightTrajectory: [18.2, 19.4, 20.4, 21.2, 21.8, 22.3, 22.7],
+    nPerHaTrajectory: [820,  780,  745,  715,  690,  668,  650],
+    tmaiTrajectory:   [5.62, 5.48, 5.31, 5.10, 4.86, 4.60, 4.33],
+    dataMethod: "exact",
+    dataWarning: null,
   },
   scenarios: [
     {

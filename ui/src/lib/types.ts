@@ -12,6 +12,12 @@ export interface ForestState {
   forestType: "침엽수" | "활엽수" | "혼효림";
   siteIndex: number;
   coordinates: { lat: number; lng: number };
+  // Module B 현재 시점 추가 필드
+  tmaiNow?: number;       // 총평균재적생장량 (m³/ha/yr)
+  heightNow?: number;     // 현재 수고 (m)
+  nPerHaNow?: number;     // 현재 ha당 본수
+  dataMethod?: string;    // 수확표 lookup 방법
+  dataWarning?: string | null;
 }
 
 export interface GradeDistribution {
@@ -28,9 +34,16 @@ export interface GrowthForecast {
   years: number[];
   volumePerHa: number[];
   carbonPerHa: number[];
-  carbonSequestration: number[]; // tC/ha/yr
+  carbonSequestration: number[]; // tCO2/ha/yr
   gradeDistributionByYear: GradeDistribution[];
   climateScenario: "SSP1-2.6" | "SSP2-4.5" | "SSP5-8.5";
+  // Module B 전달 필드
+  dbhTrajectory: number[];          // 평균 흉고직경 (cm)
+  heightTrajectory: number[];       // 평균 수고 (m)
+  nPerHaTrajectory: number[];       // ha당 본수
+  tmaiTrajectory: number[];         // 총평균재적생장량 (m³/ha/yr)
+  dataMethod?: string;              // "exact" | "interpolated" | ...
+  dataWarning?: string | null;
 }
 
 // Module C 출력: 시나리오별 LEV/NPV
@@ -70,6 +83,7 @@ export interface MarketData {
   };
   discountRate: number;  // %
   priceDate: string;
+  vcmFloorWta?: number;  // 산주 WTA 하한 (원/tCO₂, 박2020)
 }
 
 export interface OffsetEligibility {

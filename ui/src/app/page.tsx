@@ -136,21 +136,25 @@ export default function Home() {
                 <ScenarioTable scenarios={partial?.scenarios} market={partial?.market} />
               </div>
 
-              {/* KOC 등록 가능성 */}
+              {/* KOC 등록 가능성 + Module D 시장 상세 */}
               {partial?.offsetEligibility && (
-                <div className="shrink-0 bg-black/45 backdrop-blur-md border border-white/10 shadow-xl rounded-xl p-4 animate-slide-up">
-                  <p className="text-sm font-semibold text-forest-100 mb-3">
+                <div className="shrink-0 bg-black/45 backdrop-blur-md border border-white/10 shadow-xl rounded-xl p-4 animate-slide-up space-y-4">
+                  <p className="text-sm font-semibold text-forest-100">
                     🌿 산림탄소상쇄 등록 가능성
                   </p>
+
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
                       <p className="text-forest-500 mb-1.5">매칭 사업유형</p>
                       <div className="flex flex-wrap gap-1">
-                        {partial.offsetEligibility.matchedTypes.map((t) => (
-                          <span key={t} className="px-2 py-0.5 bg-blue-900/70 text-blue-300 rounded-full">
-                            {t}
-                          </span>
-                        ))}
+                        {partial.offsetEligibility.matchedTypes.length > 0
+                          ? partial.offsetEligibility.matchedTypes.map((t) => (
+                              <span key={t} className="px-2 py-0.5 bg-[#1a2e3a]/80 text-[#5a8098] border border-[#3f6480]/40 rounded-full">
+                                {t}
+                              </span>
+                            ))
+                          : <span className="text-forest-600">해당 없음</span>
+                        }
                       </div>
                     </div>
                     <div>
@@ -162,6 +166,62 @@ export default function Home() {
                       </ol>
                     </div>
                   </div>
+
+                  {/* Module D: 탄소 시장 가격 상세 */}
+                  {partial.market && (
+                    <div className="border-t border-white/10 pt-3">
+                      <p className="text-xs text-forest-500 mb-2">탄소 시장 가격 (Module D · {partial.market.priceDate})</p>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="bg-white/10 rounded-lg px-3 py-2">
+                          <p className="text-forest-500 mb-0.5">KAU 종가</p>
+                          <p className="font-semibold text-forest-100">
+                            {partial.market.kauPrice.toLocaleString()}
+                            <span className="text-forest-400 font-normal ml-1">원/tCO₂</span>
+                          </p>
+                        </div>
+                        <div className="bg-white/10 rounded-lg px-3 py-2">
+                          <p className="text-forest-500 mb-0.5">KOC 추정가</p>
+                          <p className="font-semibold text-forest-100">
+                            {partial.market.kocEstimate.toLocaleString()}
+                            <span className="text-forest-400 font-normal ml-1">원/tCO₂</span>
+                          </p>
+                        </div>
+                        <div className="bg-white/10 rounded-lg px-3 py-2">
+                          <p className="text-forest-500 mb-0.5">WTA 하한</p>
+                          <p className="font-semibold text-forest-100">
+                            {(partial.market.vcmFloorWta ?? 17039).toLocaleString()}
+                            <span className="text-forest-400 font-normal ml-1">원/tCO₂</span>
+                          </p>
+                          <p className="text-[10px] text-forest-600 mt-0.5">박2020 산주 기준</p>
+                        </div>
+                      </div>
+
+                      {/* 수종별 목재 가격 */}
+                      <div className="mt-3">
+                        <p className="text-xs text-forest-500 mb-2">수종 목재 가격 (6등급)</p>
+                        <div className="grid grid-cols-6 gap-1 text-[10px] text-center">
+                          {(["teukYongJae","grade1","grade2","grade3","wonJuJae","wonRyoJae"] as const).map((g) => {
+                            const labels: Record<string, string> = {
+                              teukYongJae: "특용재", grade1: "1등급", grade2: "2등급",
+                              grade3: "3등급", wonJuJae: "원주재", wonRyoJae: "원료재",
+                            };
+                            const v = partial.market!.timberPrices[g];
+                            return (
+                              <div key={g} className="bg-white/10 rounded px-1 py-1.5">
+                                <p className="text-forest-500">{labels[g]}</p>
+                                <p className="text-forest-200 font-medium mt-0.5">
+                                  {v ? (v / 1000).toFixed(0) + "k" : "—"}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-forest-600 mt-1.5 text-right">
+                          단위: 원/m³ · KOFPI 2025 Q4
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
