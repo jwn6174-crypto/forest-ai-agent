@@ -27,9 +27,9 @@
 | 모듈 | 담당자 | 역할 | 상태 |
 |---|---|---|---|
 | **A** | 민석 | 위성 데이터 (Google Earth Engine), NFI 표본점 수집 | ⏳ 미시작 |
-| **B** | 나정우 | 임분 성장 예측 + 탄소 흡수 | ✅ 핵심 완성 |
+| **B** | 정우 | 임분 성장 예측 + 탄소 흡수 | ✅ 핵심 완성 |
 | **C** | 희도 | Faustmann NPV 계산 | 🔄 진행 중 |
-| **D** | 나정우 | 원목 시장가격 + 법령 + 비용 + RAG | ✅ 핵심 완성 |
+| **D** | 정우 | 원목 시장가격 + 법령 + 비용 + RAG | ✅ 핵심 완성 |
 | **E** | 하수범 | Streamlit + LLM 에이전트 | 🔄 진행 중 |
 
 > 모듈 B/D 는 NFI 실측 데이터가 필요한 일부 작업(기후 보정 회귀, 등급분포 Weibull)에서
@@ -39,11 +39,11 @@
 
 ## 📂 모듈별 상세 문서
 
-- [**모듈 B/D — 성장 예측 + 시장·정책**](module_bd/README.md) ⭐ (나정우 작업)
+- [**모듈 B/D — 성장 예측 + 시장·정책**](module_bd/README.md) ⭐ (정우 작업)
 
 ---
 
-## 🏆 Day 1-4 성취 (나정우 작업 — 모듈 B/D)
+## 🏆 Day 1-4 성취 (정우 작업 — 모듈 B/D)
 
 ### 함수 완성 (가이드 §8.2)
 - ✅ `growth_predict()` — 11 수종 임분 성장 + 탄소 흡수
@@ -107,7 +107,7 @@ python module_bd/src/mt_weather_collect.py
 
 ## 👥 팀
 
-- **나정우** — 모듈 B (성장 예측 + 탄소), 모듈 D (시장·법령·비용·RAG)
+- **정우** — 모듈 B (성장 예측 + 탄소), 모듈 D (시장·법령·비용·RAG)
 - **민석** — 모듈 A (위성 GEE, NFI 표본점 수집)
 - **희도** — 모듈 C (Faustmann NPV, NRF 과제 2022S1A5A8051754)
 - **하수범** — 모듈 E (Streamlit + LLM 에이전트)
@@ -132,4 +132,4 @@ python module_bd/src/mt_weather_collect.py
 ## 🔗 Repo
 
 - GitHub: https://github.com/jwn6174-crypto/forest-ai-agent
-- Module B/D 책임자: 나정우 (jwn6174@gmail.com)
+- Module B/D 책임자: 정우 (jwn6174@gmail.com)
