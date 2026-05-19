@@ -178,6 +178,10 @@ async def analyze(req: AnalyzeRequest):
         cum_carbon.append(round(running, 2))
         prev_rel = rel
 
+    # Module B 전체 trajectory 필드 추출
+    data_method  = cur.get("method", "exact")
+    data_warning = cur.get("warning")
+
     growth_forecast = {
         "years":                   [pt["age"] - age_now for pt in trajectory],
         "volumePerHa":             [round(pt.get("volume") or 0.0, 1) for pt in trajectory],
@@ -185,6 +189,13 @@ async def analyze(req: AnalyzeRequest):
         "carbonSequestration":     [round(pt.get("carbon_uptake_rate") or 0.0, 3) for pt in trajectory],
         "gradeDistributionByYear": [estimate_grade_dist(pt.get("dbh") or cur_dbh) for pt in trajectory],
         "climateScenario":         "SSP1-2.6",
+        # Module B 전달 필드
+        "dbhTrajectory":    [round(pt.get("dbh") or 0.0, 1) for pt in trajectory],
+        "heightTrajectory": [round(pt.get("height") or 0.0, 1) for pt in trajectory],
+        "nPerHaTrajectory": [round(pt.get("n_per_ha") or 0.0, 0) for pt in trajectory],
+        "tmaiTrajectory":   [round(pt.get("tmai_m3_per_ha_yr") or 0.0, 2) for pt in trajectory],
+        "dataMethod":       data_method,
+        "dataWarning":      data_warning,
     }
 
     # ── ForestState ───────────────────────────────────────────────────────────
@@ -204,6 +215,12 @@ async def analyze(req: AnalyzeRequest):
         "forestType":        p["forest_type"],
         "siteIndex":         site_index,
         "coordinates":       {"lat": p["lat"], "lng": p["lng"]},
+        # Module B 현재 시점 추가 필드
+        "tmaiNow":    round(cur.get("tmai_m3_per_ha_yr") or 0.0, 2),
+        "heightNow":  round(cur.get("height") or 0.0, 1),
+        "nPerHaNow":  round(cur.get("n_per_ha") or 0.0, 0),
+        "dataMethod": data_method,
+        "dataWarning": data_warning,
     }
 
     # ── Module D: MarketData ──────────────────────────────────────────────────
@@ -220,6 +237,7 @@ async def analyze(req: AnalyzeRequest):
         },
         "discountRate": discount_rate,
         "priceDate":    today,
+        "vcmFloorWta":  market.get("vcm_floor_wta") or 17039,
     }
 
     # ── Offset Eligibility ────────────────────────────────────────────────────
