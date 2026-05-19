@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-noto: 'Noto Sans KR', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: url('/bg-forest.jpg?v=2') center/cover no-repeat fixed;
+  color: #c5e8c7;
+  font-family: var(--font-noto), system-ui, sans-serif;
+}
+
+/* 전체 어둡게 오버레이 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 8, 2, 0.35);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+::-webkit-scrollbar-thumb { background: #2d5230; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3d6b42; }
+
+/* 채팅 스크롤 */
+.chat-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2d5230 transparent;
+}
+
+/* 차트 툴팁 */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: rgba(10, 26, 13, 0.95) !important;
+  border: 1px solid rgba(45, 82, 48, 0.8) !important;
+  border-radius: 8px !important;
+}
+
+/* 타이핑 커서 애니메이션 */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.typing-cursor::after {
+  content: '▋';
+  animation: blink 0.8s ease infinite;
+  color: #6aab70;
+}
+
+/* 모듈 로딩 도트 */
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+.dot-1 { animation: dot-bounce 1.2s ease infinite 0s; }
+.dot-2 { animation: dot-bounce 1.2s ease infinite 0.2s; }
+.dot-3 { animation: dot-bounce 1.2s ease infinite 0.4s; }
