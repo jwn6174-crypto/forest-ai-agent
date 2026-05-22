@@ -7,7 +7,7 @@ Risk 는 보조 error bar.
 희도 D12 결정 — 2026-05-20 Day 6 작성
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 
 def compute_pareto_front(
@@ -48,18 +48,19 @@ def compute_pareto_front(
     for scenario, r in lev_results.items():
         if not r.get("feasibility", True):
             continue
-        carbon = r.get("carbon_stock_T_tco2_per_ha_median",
-                       r.get("carbon_stock_T_tco2_per_ha", 0))
+        carbon = r.get("carbon_stock_T_tco2_per_ha_median", r.get("carbon_stock_T_tco2_per_ha", 0))
         npv = r.get("npv_median", r.get("npv", 0))
-        points.append({
-            "scenario": scenario,
-            "npv": npv,
-            "carbon_stock_T": carbon,
-            "npv_q05": r.get("npv_q05", npv),
-            "npv_q95": r.get("npv_q95", npv),
-            "T_optimal": r.get("T_optimal"),
-            "lev": r.get("lev_median", r.get("lev", 0)),
-        })
+        points.append(
+            {
+                "scenario": scenario,
+                "npv": npv,
+                "carbon_stock_T": carbon,
+                "npv_q05": r.get("npv_q05", npv),
+                "npv_q95": r.get("npv_q95", npv),
+                "T_optimal": r.get("T_optimal"),
+                "lev": r.get("lev_median", r.get("lev", 0)),
+            }
+        )
 
     # Pareto frontier: NPV ↑ + carbon ↑ 둘 다 dominate 안 되는 점
     pareto_optimal = []
@@ -99,9 +100,7 @@ def format_pareto_for_plotly(pareto: Dict) -> Dict:
         "labels": [p["scenario"] for p in points],
         "error_x_q05": [(p["npv"] - p["npv_q05"]) / 1e6 for p in points],
         "error_x_q95": [(p["npv_q95"] - p["npv"]) / 1e6 for p in points],
-        "is_pareto": [
-            p["scenario"] in pareto["pareto_optimal"] for p in points
-        ],
+        "is_pareto": [p["scenario"] in pareto["pareto_optimal"] for p in points],
         "labels_korean": {
             "x": "NPV (백만원/ha)",
             "y": "T시점 탄소 stock (tCO₂/ha)",
@@ -123,7 +122,7 @@ def select_three_representative(pareto: Dict) -> List[Dict]:
         pareto_pts = pareto["points"]
 
     if len(pareto_pts) <= 3:
-        labels = ["안정형", "균형형", "수익형"][:len(pareto_pts)]
+        labels = ["안정형", "균형형", "수익형"][: len(pareto_pts)]
         sorted_pts = sorted(pareto_pts, key=lambda p: p["npv"])
         return [{**p, "_label": labels[i]} for i, p in enumerate(sorted_pts)]
 
@@ -142,18 +141,42 @@ if __name__ == "__main__":
     print("=" * 60)
 
     fake = {
-        "즉시": {"npv_median": 50_000_000, "carbon_stock_T_tco2_per_ha_median": 0,
-                 "feasibility": True, "T_optimal": 50},
-        "5년": {"npv_median": 55_000_000, "carbon_stock_T_tco2_per_ha_median": 50,
-                 "feasibility": True, "T_optimal": 55},
-        "10년": {"npv_median": 65_000_000, "carbon_stock_T_tco2_per_ha_median": 200,
-                 "feasibility": True, "T_optimal": 60},
-        "연장KOC": {"npv_median": 55_000_000, "carbon_stock_T_tco2_per_ha_median": 300,
-                    "feasibility": True, "T_optimal": 60},
-        "임산물": {"npv_median": 60_000_000, "carbon_stock_T_tco2_per_ha_median": 250,
-                   "feasibility": True, "T_optimal": 65},
-        "간벌+10년": {"npv_median": 80_000_000, "carbon_stock_T_tco2_per_ha_median": 250,
-                      "feasibility": True, "T_optimal": 60},
+        "즉시": {
+            "npv_median": 50_000_000,
+            "carbon_stock_T_tco2_per_ha_median": 0,
+            "feasibility": True,
+            "T_optimal": 50,
+        },
+        "5년": {
+            "npv_median": 55_000_000,
+            "carbon_stock_T_tco2_per_ha_median": 50,
+            "feasibility": True,
+            "T_optimal": 55,
+        },
+        "10년": {
+            "npv_median": 65_000_000,
+            "carbon_stock_T_tco2_per_ha_median": 200,
+            "feasibility": True,
+            "T_optimal": 60,
+        },
+        "연장KOC": {
+            "npv_median": 55_000_000,
+            "carbon_stock_T_tco2_per_ha_median": 300,
+            "feasibility": True,
+            "T_optimal": 60,
+        },
+        "임산물": {
+            "npv_median": 60_000_000,
+            "carbon_stock_T_tco2_per_ha_median": 250,
+            "feasibility": True,
+            "T_optimal": 65,
+        },
+        "간벌+10년": {
+            "npv_median": 80_000_000,
+            "carbon_stock_T_tco2_per_ha_median": 250,
+            "feasibility": True,
+            "T_optimal": 60,
+        },
     }
 
     pf = compute_pareto_front(fake)
@@ -173,7 +196,9 @@ if __name__ == "__main__":
     print("\n[검증 3] 3 대표점")
     three = select_three_representative(pf)
     for p in three:
-        print(f"  {p['_label']}: {p['scenario']} NPV {p['npv']/1e6:.1f}M, C {p['carbon_stock_T']}")
+        print(
+            f"  {p['_label']}: {p['scenario']} NPV {p['npv'] / 1e6:.1f}M, C {p['carbon_stock_T']}"
+        )
     assert len(three) == 3
 
     print("\n" + "=" * 60)

@@ -18,13 +18,13 @@ LHS 권장 — 단순 MC 1000 의 std 3-7% → LHS 300 으로 std 1-2%.
 
 import math
 import random
-from typing import Dict, List, Optional
+from typing import Dict
 
 import numpy as np
 
-from .lev_core import compute_lev_single
-from .lhs_sampling import generate_lhs_samples_6d, HAS_SCIPY
 from .climate_multiplier import get_climate_multiplier
+from .lev_core import compute_lev_single
+from .lhs_sampling import HAS_SCIPY, generate_lhs_samples_6d
 
 
 def run_monte_carlo(
@@ -89,7 +89,7 @@ def run_monte_carlo(
     True
     """
     species = stand["species_dominant"]
-    area_ha = stand["area_ha"]
+    stand["area_ha"]
 
     # ─── 1. 분포 정의 ────────────────────────────────────────────
     # AGB / volume: Triangular (q05, mid, q95)
@@ -100,7 +100,7 @@ def run_monte_carlo(
     # 목재가: Lognormal, KOFPI 평균값 ± 10%
     # 등급별이지만 단순화로 1등급 기준 단일 변수
     timber_price_mean = 199_700  # KOFPI Q4 2025 강원소나무 1등급
-    timber_price_std = timber_price_mean * 0.10
+    timber_price_mean * 0.10
 
     # KOC: Lognormal, KAU × 0.7 ± 15%
     koc_mean = 12_040
@@ -118,7 +118,7 @@ def run_monte_carlo(
 
     # ─── 2. Sample 생성 (LHS 또는 단순 MC) ───────────────────────
     distributions = {
-        "volume_mult": ("triangular", {"min": v_q05/v_mid, "mode": 1.0, "max": v_q95/v_mid}),
+        "volume_mult": ("triangular", {"min": v_q05 / v_mid, "mode": 1.0, "max": v_q95 / v_mid}),
         "timber_mult": ("lognormal", {"mean": 1.0, "std": 0.10}),  # 가격 multiplier
         "koc_price": ("lognormal", {"mean": koc_mean, "std": koc_std}),
         "ntfp_annual": ("lognormal", {"mean": ntfp_mean, "std": ntfp_std}),
@@ -134,7 +134,7 @@ def run_monte_carlo(
         samples = []
         for _ in range(n_samples):
             s = {
-                "volume_mult": rng.triangular(v_q05/v_mid, v_q95/v_mid, 1.0),
+                "volume_mult": rng.triangular(v_q05 / v_mid, v_q95 / v_mid, 1.0),
                 "timber_mult": rng.lognormvariate(0, 0.10),
                 "koc_price": max(0, rng.gauss(koc_mean, koc_std)),
                 "ntfp_annual": max(0, rng.gauss(ntfp_mean, ntfp_std)),
@@ -160,7 +160,9 @@ def run_monte_carlo(
         # NOTE: 시장가격·KOC 분산은 lev_core 내부에서 market_snapshot 호출 시 적용 불가 (정우 함수)
         # → climate multiplier + discount rate + volume 만 외부 분산. 가격 분산은 별도 후처리.
         result = compute_lev_single(
-            stand_mc, scenario, T,
+            stand_mc,
+            scenario,
+            T,
             discount_rate=r,
             climate_scenario=climate_scenario,
             climate_multiplier=cm,
@@ -178,8 +180,11 @@ def run_monte_carlo(
         carbon_adj = result["carbon_revenue"] * (koc_actual / max(koc_used, 1))
 
         npv_adj = (
-            timber_adj + carbon_adj + result["ntfp_revenue"]
-            + result["subsidy_revenue"] - result["total_cost"]
+            timber_adj
+            + carbon_adj
+            + result["ntfp_revenue"]
+            + result["subsidy_revenue"]
+            - result["total_cost"]
             + result["hwp_loss_npv"]
         )
 
@@ -200,10 +205,7 @@ def run_monte_carlo(
     levs_arr = np.array(levs)
 
     npv_median = float(np.median(npvs_arr))
-    std_ratio = (
-        float(np.std(npvs_arr) / abs(npv_median))
-        if abs(npv_median) > 1 else float("inf")
-    )
+    std_ratio = float(np.std(npvs_arr) / abs(npv_median)) if abs(npv_median) > 1 else float("inf")
 
     return {
         "scenario": scenario,
@@ -230,7 +232,8 @@ def run_monte_carlo(
         "std_ratio": std_ratio,
         "feasibility": True,  # scenarios.scenario_feasibility 가 외부에서 판정
         "data_sources": detailed["data_sources"],
-        "limitations": detailed["limitations"] + [
+        "limitations": detailed["limitations"]
+        + [
             f"Monte Carlo {n_samples} samples ({'LHS' if use_lhs and HAS_SCIPY else '단순'}), std/median ratio={std_ratio:.3f}",
         ],
     }
@@ -243,9 +246,13 @@ if __name__ == "__main__":
 
     stand = {
         "species_dominant": "강원지방소나무",
-        "age_estimate": 50, "site_index": 15,
-        "area_ha": 2.0, "distance_to_road_km": 1.5,
-        "volume_m3_per_ha": 281.0, "volume_q05": 225.0, "volume_q95": 337.0,
+        "age_estimate": 50,
+        "site_index": 15,
+        "area_ha": 2.0,
+        "distance_to_road_km": 1.5,
+        "volume_m3_per_ha": 281.0,
+        "volume_q05": 225.0,
+        "volume_q95": 337.0,
     }
 
     print("\n[검증 1] 100 samples MC (즉시)")
@@ -263,7 +270,9 @@ if __name__ == "__main__":
     r3 = run_monte_carlo(stand, "즉시", T=50, n_samples=100, climate_scenario="SSP585", seed=42)
     print(f"  median: {r3['npv_median']:,.0f}원, climate: {r3['climate_multiplier_applied']}")
     # MC sampling 이라 평균 climate_multiplier 도 분산이 큼 — 단지 baseline 보다 낮으면 OK
-    r3_baseline = run_monte_carlo(stand, "즉시", T=50, n_samples=100, climate_scenario="baseline", seed=42)
+    r3_baseline = run_monte_carlo(
+        stand, "즉시", T=50, n_samples=100, climate_scenario="baseline", seed=42
+    )
     assert r3["npv_median"] < r3_baseline["npv_median"]
 
     print("\n[검증 4] 간벌+10년 — subsidy 매출 포함")

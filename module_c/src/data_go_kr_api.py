@@ -11,11 +11,12 @@ data_go_kr_api.py — data.go.kr OpenAPI 호출 wrapper.
 """
 
 import os
-from typing import Dict, List, Optional
-from urllib.parse import quote
+import sys
+from typing import Dict
 
 try:
     import requests
+
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -23,8 +24,10 @@ except ImportError:
 
 # .env 자동 로드
 try:
-    from dotenv import load_dotenv
     from pathlib import Path
+
+    from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 except ImportError:
     pass
@@ -38,7 +41,7 @@ _FOREST_STAT_BASE = "http://apis.data.go.kr/1400000/frsas1"
 
 
 def fetch_forest_statistics(
-    clssc_id: Optional[str] = None,
+    clssc_id: str | None = None,
     page_no: int = 1,
     num_of_rows: int = 100,
     *,
@@ -103,9 +106,9 @@ _FIN_BASE = "https://apis.data.go.kr/1160100/service/GetGeneralProductInfoServic
 
 
 def fetch_kau_price(
-    bas_dt: Optional[str] = None,
-    begin_bas_dt: Optional[str] = None,
-    end_bas_dt: Optional[str] = None,
+    bas_dt: str | None = None,
+    begin_bas_dt: str | None = None,
+    end_bas_dt: str | None = None,
     like_itms_nm: str = "KAU",
     page_no: int = 1,
     num_of_rows: int = 20,
@@ -180,7 +183,7 @@ def fetch_kau_price(
     return {"raw_xml": r.text}
 
 
-def fetch_kau_latest_close() -> Optional[float]:
+def fetch_kau_latest_close() -> float | None:
     """
     KAU 최신 종가 1건 (편의 함수).
 
@@ -213,10 +216,17 @@ def fetch_oil_price(num_of_rows: int = 5, oil_ctg: str = "경유") -> Dict:
     if not key:
         raise RuntimeError("DATA_GO_KR_KEY 미설정")
     url = f"{_FIN_BASE}/getOilPriceInfo"
-    r = requests.get(url, params={
-        "serviceKey": key, "pageNo": 1, "numOfRows": num_of_rows,
-        "resultType": "json", "oilCtg": oil_ctg,
-    }, timeout=15)
+    r = requests.get(
+        url,
+        params={
+            "serviceKey": key,
+            "pageNo": 1,
+            "numOfRows": num_of_rows,
+            "resultType": "json",
+            "oilCtg": oil_ctg,
+        },
+        timeout=15,
+    )
     r.raise_for_status()
     return r.json()
 
@@ -248,20 +258,25 @@ def vworld_pnu_to_geometry(pnu: str) -> Dict:
     if not key:
         raise RuntimeError("VWORLD_KEY 미설정")
     url = f"{_VWORLD_BASE}/data"
-    r = requests.get(url, params={
-        "key": key,
-        "service": "data", "version": "2.0",
-        "request": "GetFeature",
-        "data": "LP_PA_CBND_BUBUN",
-        "attrFilter": f"pnu:=:{pnu}",
-        "geometry": "true",
-        "format": "json",
-    }, timeout=15)
+    r = requests.get(
+        url,
+        params={
+            "key": key,
+            "service": "data",
+            "version": "2.0",
+            "request": "GetFeature",
+            "data": "LP_PA_CBND_BUBUN",
+            "attrFilter": f"pnu:=:{pnu}",
+            "geometry": "true",
+            "format": "json",
+        },
+        timeout=15,
+    )
     r.raise_for_status()
     return r.json()
 
 
-def vworld_address_to_coord(address: str) -> Optional[Dict]:
+def vworld_address_to_coord(address: str) -> Dict | None:
     """
     VWorld 주소 → 좌표 변환.
 
@@ -277,11 +292,18 @@ def vworld_address_to_coord(address: str) -> Optional[Dict]:
     if not key:
         raise RuntimeError("VWORLD_KEY 미설정")
     url = f"{_VWORLD_BASE}/address"
-    r = requests.get(url, params={
-        "service": "address", "request": "getCoord",
-        "key": key, "address": address,
-        "type": "PARCEL", "format": "json",
-    }, timeout=15)
+    r = requests.get(
+        url,
+        params={
+            "service": "address",
+            "request": "getCoord",
+            "key": key,
+            "address": address,
+            "type": "PARCEL",
+            "format": "json",
+        },
+        timeout=15,
+    )
     r.raise_for_status()
     return r.json().get("response", {})
 
@@ -293,7 +315,7 @@ if __name__ == "__main__":
 
     if not HAS_REQUESTS:
         print("\n⚠️  requests/python-dotenv 미설치 — pip install requests python-dotenv")
-        exit(0)
+        sys.exit(0)
 
     print(f"\n  Key loaded (encoded): {os.environ.get('DATA_GO_KR_KEY_ENCODED', '?')[:20]}...")
 

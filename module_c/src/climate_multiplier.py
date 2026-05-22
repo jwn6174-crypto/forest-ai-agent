@@ -17,7 +17,6 @@ climate_multiplier.py — SSP 기후 시나리오 × 수종 → 생장 multiplie
 import json
 import random
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIMATE_PATH = ROOT / "data" / "raw" / "climate" / "climate_multipliers_2020.json"
@@ -40,7 +39,7 @@ SPECIES_ALIASES = {
 def get_climate_multiplier(
     species: str,
     scenario: str = "baseline",
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
     sample: bool = False,
 ) -> float:
     """
@@ -102,7 +101,7 @@ def apply_multiplier_to_trajectory(
     volume_trajectory: list,
     species: str,
     scenario: str = "baseline",
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
     sample: bool = False,
 ) -> list:
     """
@@ -168,14 +167,16 @@ if __name__ == "__main__":
     boosted = apply_multiplier_to_trajectory(traj, "참나무류", "SSP245")
     print(f"  baseline: {traj}")
     print(f"  SSP245:   {boosted}")
-    assert all(b > t for b, t in zip(boosted, traj))
+    assert all(b > t for b, t in zip(boosted, traj, strict=False))
 
     # 검증 5: MC sampling
     print("\n[검증 5] MC sampling (10회)")
     rng = random.Random(42)
-    samples = [get_climate_multiplier("강원지방소나무", "SSP245", rng, sample=True) for _ in range(10)]
+    samples = [
+        get_climate_multiplier("강원지방소나무", "SSP245", rng, sample=True) for _ in range(10)
+    ]
     print(f"  samples: {[round(s, 3) for s in samples]}")
-    print(f"  mean: {sum(samples)/len(samples):.3f}")
+    print(f"  mean: {sum(samples) / len(samples):.3f}")
 
     print("\n" + "=" * 60)
     print("✅ climate_multiplier.py 5/5 검증 통과")

@@ -16,20 +16,23 @@ compute_lev.py — Module C 진입점.
 희도 진입점 — 2026-05-20 Day 6 작성
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from .scenarios import (
-    scenario_T, scenario_feasibility, VALID_SCENARIOS, Scenario,
-)
+from .draft_plan import create_draft_plan
 from .lev_core import compute_lev_single
 from .monte_carlo import run_monte_carlo
 from .pareto import compute_pareto_front, select_three_representative
-from .draft_plan import create_draft_plan
+from .scenarios import (
+    VALID_SCENARIOS,
+    Scenario,
+    scenario_feasibility,
+    scenario_T,
+)
 
 
 def compute_lev(
     stand: Dict,
-    scenarios: Optional[List[Scenario]] = None,
+    scenarios: List[Scenario] | None = None,
     *,
     use_monte_carlo: bool = True,
     n_samples: int = 300,
@@ -99,22 +102,31 @@ def compute_lev(
                 "T_optimal": T,
                 "feasibility": False,
                 "feasibility_note": note,
-                "npv": 0, "npv_median": 0,
-                "npv_q05": 0, "npv_q95": 0,
-                "lev": 0, "lev_median": 0,
-                "timber_revenue": 0, "carbon_revenue": 0,
-                "ntfp_revenue": 0, "subsidy_revenue": 0,
-                "total_cost": 0, "hwp_loss_npv": 0,
+                "npv": 0,
+                "npv_median": 0,
+                "npv_q05": 0,
+                "npv_q95": 0,
+                "lev": 0,
+                "lev_median": 0,
+                "timber_revenue": 0,
+                "carbon_revenue": 0,
+                "ntfp_revenue": 0,
+                "subsidy_revenue": 0,
+                "total_cost": 0,
+                "hwp_loss_npv": 0,
                 "carbon_stock_T_tco2_per_ha": 0,
                 "grade_distribution_T": {},
-                "data_sources": {}, "limitations": [note],
+                "data_sources": {},
+                "limitations": [note],
             }
             continue
 
         try:
             if use_monte_carlo:
                 r = run_monte_carlo(
-                    stand, sc, T,
+                    stand,
+                    sc,
+                    T,
                     n_samples=n_samples,
                     discount_rate_base=discount_rate,
                     climate_scenario=climate_scenario,
@@ -130,7 +142,9 @@ def compute_lev(
                 r["lev"] = r["lev_median"]
             else:
                 r = compute_lev_single(
-                    stand, sc, T,
+                    stand,
+                    sc,
+                    T,
                     discount_rate=discount_rate,
                     climate_scenario=climate_scenario,
                     region=region,
@@ -152,9 +166,12 @@ def compute_lev(
                 "T_optimal": T,
                 "feasibility": False,
                 "feasibility_note": f"계산 오류: {e}",
-                "npv": 0, "npv_median": 0,
-                "lev": 0, "lev_median": 0,
-                "data_sources": {}, "limitations": [str(e)],
+                "npv": 0,
+                "npv_median": 0,
+                "lev": 0,
+                "lev_median": 0,
+                "data_sources": {},
+                "limitations": [str(e)],
             }
 
     return out
@@ -164,7 +181,7 @@ def compute_lev_with_plan(
     stand: Dict,
     *,
     user_preference: str = "균형",
-    scenarios: Optional[List[Scenario]] = None,
+    scenarios: List[Scenario] | None = None,
     use_monte_carlo: bool = True,
     n_samples: int = 300,
     discount_rate: float = 0.05,
@@ -191,7 +208,8 @@ def compute_lev_with_plan(
     """
     # 1. 6 시나리오 LEV
     results = compute_lev(
-        stand, scenarios=scenarios,
+        stand,
+        scenarios=scenarios,
         use_monte_carlo=use_monte_carlo,
         n_samples=n_samples,
         discount_rate=discount_rate,
@@ -207,7 +225,8 @@ def compute_lev_with_plan(
 
     # 3. DraftPlanCard
     plan = create_draft_plan(
-        stand, results,
+        stand,
+        results,
         user_preference=user_preference,
         region=region,
     )
@@ -236,15 +255,17 @@ if __name__ == "__main__":
     print("=" * 60)
 
     for parcel_id in list_demo_parcels():
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"[{parcel_id}]")
         stand = get_demo_parcel(parcel_id)
-        print(f"  {stand['species_dominant']} {stand['age_estimate']}년 "
-              f"SI={stand['site_index']} {stand['area_ha']}ha")
+        print(
+            f"  {stand['species_dominant']} {stand['age_estimate']}년 "
+            f"SI={stand['site_index']} {stand['area_ha']}ha"
+        )
 
         # 빠른 검증을 위해 50 samples
         results = compute_lev(stand, n_samples=50, seed=42)
-        print(f"\n  Scenario      NPV_med (M)   q05~q95 (M)        Feasible")
+        print("\n  Scenario      NPV_med (M)   q05~q95 (M)        Feasible")
         for sc, r in results.items():
             f = "✅" if r["feasibility"] else "❌"
             npv = r.get("npv_median", r.get("npv", 0)) / 1e6
@@ -253,7 +274,7 @@ if __name__ == "__main__":
             print(f"  {sc:12s} {npv:>10.1f}  {q05:>6.1f}~{q95:<6.1f}    {f}")
 
     # DraftPlanCard 시연
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("[draft_plan 통합 시연 — 보은 50년]")
     print("=" * 60)
     stand = get_demo_parcel("boeun_pine_50y_2ha")
@@ -266,19 +287,21 @@ if __name__ == "__main__":
     print(f"  uplift: {plan['npv_uplift_label']}")
     print(f"  uncertainty: {plan['uncertainty_tier']} ({plan['uncertainty_note'][:50]}...)")
     print(f"\n  Pareto-optimal: {package['pareto']['pareto_optimal']}")
-    print(f"\n  3 대표점:")
+    print("\n  3 대표점:")
     for p in package["three_representative"]:
-        print(f"    {p.get('_label', '')}: {p['scenario']} NPV {p['npv']/1e6:.1f}M C{p['carbon_stock_T']}")
+        print(
+            f"    {p.get('_label', '')}: {p['scenario']} NPV {p['npv'] / 1e6:.1f}M C{p['carbon_stock_T']}"
+        )
 
-    print(f"\n  적용 가능 사업유형:")
+    print("\n  적용 가능 사업유형:")
     for c in plan["offset_citations"][:3]:
         print(f"    - {c['code']} {c['korean']}")
 
-    print(f"\n  추천 근거:")
+    print("\n  추천 근거:")
     for r in plan["reasons"][:4]:
         print(f"    - {r}")
 
-    print(f"\n  다음 액션:")
+    print("\n  다음 액션:")
     for a in plan["next_actions"]:
         print(f"    - {a}")
 

@@ -18,12 +18,13 @@ scenarios.py — 5 시나리오 T 계산 + 법정 벌기령 feasibility.
 희도 D10 결정 — stand_state_mock 3단 fallback chain 의 시나리오 분기.
 """
 
-from typing import Literal, Tuple, Optional
+from typing import Literal, Tuple
 
 # Day 6 PR merge 전 import 경로 fallback
 try:
     from module_bd.src.legal_rotation import rotation_age
 except ImportError:
+
     def rotation_age(species: str, ownership: str = "사유림") -> int:
         """Fallback — 정우 module_bd 미배포 시 별표 3 룰베이스 직접 사용."""
         _RULES = {
@@ -87,7 +88,7 @@ def scenario_feasibility(
     age_now: int,
     T: int,
     ownership: str = "사유림",
-) -> Tuple[bool, Optional[str]]:
+) -> Tuple[bool, str | None]:
     """법정 기준벌기령 충족 여부 + 사유.
 
     Returns:

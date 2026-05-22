@@ -18,7 +18,7 @@ Faustmann-Hartman LEV 식의 L_C(T) 항 instantiation.
 import json
 import math
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 
 ROOT = Path(__file__).resolve().parents[1]
 HWP_DATA_PATH = ROOT / "data" / "raw" / "hwp" / "hwp_decay_2019.json"
@@ -32,7 +32,7 @@ def _load_hwp_data() -> dict:
 
 def compute_hwp_remaining_fraction(
     t_years: float,
-    products: Optional[Dict[str, dict]] = None,
+    products: Dict[str, dict] | None = None,
 ) -> Dict[str, float]:
     """
     벌채 후 t 년 시점에 *남아있는* HWP 탄소 비율 (제품별).
@@ -78,7 +78,7 @@ def compute_hwp_decay(
     carbon_stock_at_harvest_tco2: float,
     horizon_years: int = 100,
     annual_step: int = 1,
-    products: Optional[Dict[str, dict]] = None,
+    products: Dict[str, dict] | None = None,
 ) -> Dict[str, any]:
     """
     벌채 시 탄소 stock → HWP 시간 경과별 탄소 잔존량 trajectory.

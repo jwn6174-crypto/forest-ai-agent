@@ -8,15 +8,17 @@ draft_plan.py — DraftPlanCard 생성 (산주 UI + 정책 부록 이중 표현)
 희도 D-draft_plan 결정 — 2026-05-20 Day 6 작성
 """
 
-from typing import Dict, List, Optional
+from typing import Dict
 
-from .recommend import (
-    recommend_scenario, get_recommendation_reasons, get_next_actions,
-    generate_kakao_message,
-)
-from .uncertainty import get_uncertainty_summary
 from .kau_breakeven import compute_kau_breakeven, format_kau_breakeven_message
 from .offset_eligibility import find_eligible_project_types, search_rag_citations
+from .recommend import (
+    generate_kakao_message,
+    get_next_actions,
+    get_recommendation_reasons,
+    recommend_scenario,
+)
+from .uncertainty import get_uncertainty_summary
 
 
 def create_draft_plan(
@@ -24,7 +26,7 @@ def create_draft_plan(
     lev_results: Dict[str, Dict],
     *,
     user_preference: str = "균형",
-    legal_min_age: Optional[int] = None,
+    legal_min_age: int | None = None,
     region: str = "충북 보은",
     search_offset: bool = True,
 ) -> Dict[str, any]:
@@ -93,6 +95,7 @@ def create_draft_plan(
     # 법정 기준벌기령 자동
     if legal_min_age is None:
         from .scenarios import rotation_age
+
         legal_min_age = rotation_age(species, "사유림")
 
     npv_med = best.get("npv_median", best.get("npv", 0))
@@ -101,7 +104,9 @@ def create_draft_plan(
     uplift = npv_med - baseline.get("npv_median", baseline.get("npv", 0))
 
     # 산주용 점추정 문구
-    npv_simple = f"약 {int(npv_med / 1e6):,}백만원" if npv_med >= 1e6 else f"약 {int(npv_med / 1e4):,}만원"
+    npv_simple = (
+        f"약 {int(npv_med / 1e6):,}백만원" if npv_med >= 1e6 else f"약 {int(npv_med / 1e4):,}만원"
+    )
     npv_worst = (
         f"최악의 10% 시 {int(npv_q05 / 1e4):,}만원"
         if npv_q05 >= 0
@@ -109,13 +114,17 @@ def create_draft_plan(
     )
     uplift_label = (
         f"+{int(uplift / 1e4):,}만원/ha"
-        if uplift > 0 else (f"-{int(abs(uplift) / 1e4):,}만원/ha" if uplift < 0 else "-")
+        if uplift > 0
+        else (f"-{int(abs(uplift) / 1e4):,}만원/ha" if uplift < 0 else "-")
     )
 
     # 추천 근거
     reasons = get_recommendation_reasons(
-        recommended, lev_results, user_preference,
-        age_now=age_now, legal_min_age=legal_min_age,
+        recommended,
+        lev_results,
+        user_preference,
+        age_now=age_now,
+        legal_min_age=legal_min_age,
     )
 
     # 다음 액션
@@ -123,7 +132,9 @@ def create_draft_plan(
 
     # 불확실성 tier
     uncertainty = get_uncertainty_summary(
-        npv_med, npv_q05, npv_q95,
+        npv_med,
+        npv_q05,
+        npv_q95,
         has_satellite_data=stand.get("confidence_level") != "low",
         has_nfi_match=stand.get("confidence_note", "").startswith("NFI"),
         species=species,
@@ -165,28 +176,26 @@ def create_draft_plan(
         # ─── 산주 UI (Tier 1 — 한 화면 첫 인상) ──────────────
         "recommended_scenario": recommended,
         "natural_summary": natural_summary,  # 산주 한 줄 자연어 (Round 2)
-        "kakao_message": kakao_msg,           # 자녀에게 카톡 전송용 (Round 2)
+        "kakao_message": kakao_msg,  # 자녀에게 카톡 전송용 (Round 2)
         "npv_단순표시": npv_simple if uncertainty["show_point_estimate"] else None,
         "npv_worst_case_10pct": npv_worst,
         "npv_uplift_label": uplift_label,
         "age_now": age_now,
         "legal_min_age": legal_min_age,
-
         # ─── 산주 UI (Tier 2 — 펼치기 영역, "다른 방법도 있어요") ──
         "reasons": reasons,
         "next_actions": next_actions,
         "offset_citations": offset_citations,
-
         # ─── 불확실성 (Round 2: 이유 + 다음 행동) ─────────────
         "uncertainty_tier": uncertainty["tier"],
         "uncertainty_note": uncertainty["note"],
         "show_point_estimate": uncertainty["show_point_estimate"],
-
         # ─── KAU breakeven (경제학자 + D23) ─────────────────
         "kau_breakeven_warning": (
-            format_kau_breakeven_message(kau_be) if kau_be.get("warning") or kau_be["kau_breakeven"] else None
+            format_kau_breakeven_message(kau_be)
+            if kau_be.get("warning") or kau_be["kau_breakeven"]
+            else None
         ),
-
         # ─── 정책 부록 (Tier 3 — 정책담당관 view) ──────────────
         "full_distribution": {
             "npv_median": npv_med,
@@ -196,7 +205,6 @@ def create_draft_plan(
             "npv_q95": npv_q95,
             "std_ratio": best.get("std_ratio"),
         },
-
         # ─── 기타 ────────────────────────────────────────────
         "user_preference": user_preference,
         "_meta": {
@@ -210,7 +218,11 @@ def create_draft_plan(
 
 
 def _make_natural_summary(
-    scenario: str, npv_med: float, npv_q05: float, npv_q95: float, uplift: float,
+    scenario: str,
+    npv_med: float,
+    npv_q05: float,
+    npv_q95: float,
+    uplift: float,
 ) -> str:
     """Round 2 산주 권고: '잘되면/보통/못되면' 한 줄 자연어 요약."""
     good = int(npv_q95 / 1e6)
@@ -228,13 +240,9 @@ def _make_natural_summary(
 
     if bad < 0:
         return (
-            f"우리 산 → {sc_korean}. "
-            f"잘되면 {good}백만원, 보통 {typical}백만원, 못되면 본전 깎임."
+            f"우리 산 → {sc_korean}. 잘되면 {good}백만원, 보통 {typical}백만원, 못되면 본전 깎임."
         )
-    return (
-        f"우리 산 → {sc_korean}. "
-        f"잘되면 {good}백만원, 보통 {typical}백만원, 못되면 {bad}백만원."
-    )
+    return f"우리 산 → {sc_korean}. 잘되면 {good}백만원, 보통 {typical}백만원, 못되면 {bad}백만원."
 
 
 if __name__ == "__main__":
@@ -244,36 +252,57 @@ if __name__ == "__main__":
 
     stand = {
         "species_dominant": "강원지방소나무",
-        "age_estimate": 50, "site_index": 15,
-        "area_ha": 2.0, "distance_to_road_km": 1.5,
+        "age_estimate": 50,
+        "site_index": 15,
+        "area_ha": 2.0,
+        "distance_to_road_km": 1.5,
         "confidence_level": "low",
     }
 
     fake_results = {
-        "즉시": {"npv_median": 50e6, "npv_q05": 40e6, "npv_q95": 60e6,
-                 "feasibility": True, "T_optimal": 50,
-                 "carbon_revenue_median": 0, "carbon_stock_T_tco2_per_ha_median": 0},
-        "10년": {"npv_median": 65e6, "npv_q05": 50e6, "npv_q95": 80e6,
-                 "feasibility": True, "T_optimal": 60,
-                 "carbon_revenue_median": 0, "carbon_stock_T_tco2_per_ha_median": 200},
-        "간벌+10년": {"npv_median": 80e6, "npv_q05": 65e6, "npv_q95": 95e6,
-                      "feasibility": True, "T_optimal": 60,
-                      "carbon_revenue_median": 0, "subsidy_revenue_median": 4.4e6,
-                      "carbon_stock_T_tco2_per_ha_median": 250},
+        "즉시": {
+            "npv_median": 50e6,
+            "npv_q05": 40e6,
+            "npv_q95": 60e6,
+            "feasibility": True,
+            "T_optimal": 50,
+            "carbon_revenue_median": 0,
+            "carbon_stock_T_tco2_per_ha_median": 0,
+        },
+        "10년": {
+            "npv_median": 65e6,
+            "npv_q05": 50e6,
+            "npv_q95": 80e6,
+            "feasibility": True,
+            "T_optimal": 60,
+            "carbon_revenue_median": 0,
+            "carbon_stock_T_tco2_per_ha_median": 200,
+        },
+        "간벌+10년": {
+            "npv_median": 80e6,
+            "npv_q05": 65e6,
+            "npv_q95": 95e6,
+            "feasibility": True,
+            "T_optimal": 60,
+            "carbon_revenue_median": 0,
+            "subsidy_revenue_median": 4.4e6,
+            "carbon_stock_T_tco2_per_ha_median": 250,
+        },
     }
 
     print("\n[검증 1] 균형 선호 — DraftPlanCard 생성")
-    card = create_draft_plan(stand, fake_results, user_preference="균형",
-                              legal_min_age=40, region="충북 보은")
+    card = create_draft_plan(
+        stand, fake_results, user_preference="균형", legal_min_age=40, region="충북 보은"
+    )
     print(f"  추천: {card['recommended_scenario']}")
     print(f"  npv_단순표시: {card['npv_단순표시']}")
     print(f"  npv_worst: {card['npv_worst_case_10pct']}")
     print(f"  uplift: {card['npv_uplift_label']}")
     print(f"  tier: {card['uncertainty_tier']}")
-    print(f"  reasons:")
+    print("  reasons:")
     for r in card["reasons"][:3]:
         print(f"    - {r}")
-    print(f"  next_actions:")
+    print("  next_actions:")
     for a in card["next_actions"][:3]:
         print(f"    - {a}")
     print(f"  offset_citations: {len(card['offset_citations'])} 개")

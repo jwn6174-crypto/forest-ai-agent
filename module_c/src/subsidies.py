@@ -13,7 +13,7 @@ D18 (경영자 deliberation): 영세 사유림 7할이 간벌 보조사업 ha당
 
 import json
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
 SUBSIDY_PATH = ROOT / "data" / "raw" / "subsidies" / "forestry_subsidies_2025.json"
@@ -25,8 +25,12 @@ def _load_subsidies() -> dict:
 
 
 SubsidyAction = Literal[
-    "thinning_1st", "thinning_2nd", "young_tree_care",
-    "weeding", "reforestation_seedling", "pruning",
+    "thinning_1st",
+    "thinning_2nd",
+    "young_tree_care",
+    "weeding",
+    "reforestation_seedling",
+    "pruning",
 ]
 
 
@@ -70,8 +74,7 @@ def lookup_subsidy(
     regional = data["regional_bonus"]
 
     if action not in subsidies:
-        raise ValueError(f"Unknown subsidy action: {action}. "
-                         f"Valid: {list(subsidies.keys())}")
+        raise ValueError(f"Unknown subsidy action: {action}. Valid: {list(subsidies.keys())}")
 
     base_amount = subsidies[action]["amount"]
     bonus_rate = regional.get(region, regional["기타"])["rate"]
@@ -111,8 +114,11 @@ def lookup_thinning_revenue(
     if 30 <= age_now <= 50:
         return {**lookup_subsidy("thinning_2nd", area_ha, region), "applicable": True}
     return {
-        "amount_per_ha": 0, "total_amount": 0, "applicable": False,
-        "korean": "간벌 부적격 임령", "note": f"age={age_now} 가 간벌 보조 적격 범위 (20-50) 밖",
+        "amount_per_ha": 0,
+        "total_amount": 0,
+        "applicable": False,
+        "korean": "간벌 부적격 임령",
+        "note": f"age={age_now} 가 간벌 보조 적격 범위 (20-50) 밖",
     }
 
 
@@ -130,7 +136,7 @@ if __name__ == "__main__":
     print("\n[검증 1] 솎아베기 1차 충북 1.5ha")
     r = lookup_subsidy("thinning_1st", area_ha=1.5, region="충북")
     print(f"  단가: {r['amount_per_ha']:,}원/ha")
-    print(f"  보너스: {r['regional_bonus_rate']*100}%")
+    print(f"  보너스: {r['regional_bonus_rate'] * 100}%")
     print(f"  총: {r['total_amount']:,}원")
     expected = 2500000 * 1.5 * 1.10
     assert r["total_amount"] == round(expected)
@@ -138,7 +144,9 @@ if __name__ == "__main__":
     # 검증 2: 간벌 시나리오 매출 (보은 30년)
     print("\n[검증 2] 간벌 매출 (보은 강원소나무 30년 1.5ha)")
     r = lookup_thinning_revenue(area_ha=1.5, age_now=30, region="충북")
-    print(f"  적용: {r['applicable']}, 단가: {r['amount_per_ha']:,}원/ha, 총: {r['total_amount']:,}원")
+    print(
+        f"  적용: {r['applicable']}, 단가: {r['amount_per_ha']:,}원/ha, 총: {r['total_amount']:,}원"
+    )
     assert r["applicable"]
     assert r["total_amount"] == round(2500000 * 1.5 * 1.10)
 

@@ -9,7 +9,7 @@ AI 엔지니어 deliberation 권고 (D14):
 희도 D11.c 결정 — 2026-05-20 Day 6 작성
 """
 
-from typing import Literal, Optional
+from typing import Literal
 
 UncertaintyTier = Literal["high", "med", "low"]
 
@@ -63,7 +63,7 @@ def generate_uncertainty_note(
     *,
     has_satellite_data: bool = False,
     has_nfi_match: bool = False,
-    species: Optional[str] = None,
+    species: str | None = None,
 ) -> str:
     """
     Tier 별 LLM-readable note — 다음 step 1개 제시.
