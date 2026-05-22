@@ -270,3 +270,90 @@ if __name__ == "__main__":
     print("=" * 60)
     print("✅ 모든 스키마 작동 확인")
     print("=" * 60)
+
+# ============================================================
+# Module C 추가 (희도 D101) — 2026-05-20 Day 6
+# Manual 01 §4.1 호환 + 옵션 P2 확장 (정우 D4 동일 패턴)
+# 정우 D9 (임가경제) 와 ADR 번호 충돌 회피 위해 D101부터 시작
+# ============================================================
+
+
+class LEVResult(BaseModel):
+    """
+    Faustmann–Hartman LEV 계산 결과 (단일 시나리오 1건). 희도 D101.
+
+    compute_lev() 가 Dict[scenario_name, LEVResult] 반환:
+        results = compute_lev(stand, ["즉시","10년","연장KOC"])
+        # results["즉시"].npv_per_ha, results["10년"].lev_per_ha 등
+    """
+
+    # ----- Manual 01 §4.1 필수 필드 -----
+    scenario: str = Field(
+        ...,
+        description="시나리오 명: '즉시', '5년', '10년', '연장KOC', '임산물', '간벌+10년' (D110)",
+    )
+    T_optimal: int = Field(..., ge=0, le=200, description="벌기령 (년)")
+    npv_per_ha: float = Field(..., description="순현재가치 중앙값 (원/ha)")
+    npv_q05: float = Field(..., description="NPV 5% 분위수 (원/ha)")
+    npv_q95: float = Field(..., description="NPV 95% 분위수 (원/ha)")
+    lev_per_ha: float = Field(..., description="임지기대치 LEV (원/ha)")
+    timber_revenue: float = Field(..., description="원목 수입 중앙값 (원)")
+    carbon_revenue: float = Field(..., description="탄소 수입 중앙값 (원)")
+    ntfp_revenue: float = Field(0.0, description="임산물 수입 (시나리오 5만 비영)")
+    total_cost: float = Field(..., description="총 비용 (원)")
+    carbon_stock_T: float = Field(..., description="T시점 탄소 저장량 (tCO₂/ha)")
+    grade_distribution_T: Dict[str, float] = Field(
+        ..., description="T시점 등급별 재적 비율 (특용재/1·2·3등급/원주재/원료재)",
+    )
+    feasibility: bool = Field(..., description="법정 기준벌기령 충족 여부")
+    feasibility_note: Optional[str] = Field(None, description="feasibility=False 시 사유")
+
+    # ----- 우리 확장 (Optional, 옵션 P2) -----
+    monte_carlo_n: Optional[int] = Field(1000, description="LHS samples")
+    discount_rate: Optional[float] = Field(0.05, description="할인율 (민감도 0.04-0.07)")
+    timber_breakdown_by_grade: Optional[Dict[str, float]] = None
+    carbon_uptake_trajectory: Optional[List[float]] = None
+    cost_breakdown: Optional[Dict[str, float]] = None
+    data_sources: Optional[Dict[str, str]] = None
+    limitations: Optional[List[str]] = Field(default_factory=list)
+
+    # ----- D101.1 추가 (deliberation 결과) -----
+    uncertainty_tier: Optional[Literal["high", "med", "low"]] = Field(
+        "med", description="q05-q95 폭에 따른 자동 tier (AI D106)",
+    )
+    uncertainty_note: Optional[str] = None
+    kau_breakeven: Optional[float] = Field(
+        None, description="KAU 임계가 (원/tCO₂). D115 학술 발견 — WTA 17,039원 첫 돌파 2026-03~05.",
+    )
+    kau_breakeven_note: Optional[str] = None
+    climate_multiplier_applied: Optional[float] = Field(
+        None, description="MC 적용 climate growth multiplier (산림학자 D103.b)",
+    )
+
+
+class ComputeLEVRequest(BaseModel):
+    """수범 module_e 의 LLM agent 가 compute_lev tool 호출 시 입력. 희도 D101."""
+
+    stand_state: Dict[str, Any]
+    scenarios: List[Literal["즉시", "5년", "10년", "연장KOC", "임산물", "간벌+10년"]] = Field(
+        ..., description="최대 6 시나리오 (D110 간벌+10년 포함)",
+    )
+    discount_rate: float = Field(0.05, ge=0.01, le=0.20)
+    n_monte_carlo: int = Field(1000, ge=100, le=10000)
+    climate_scenario: Literal["baseline", "SSP126", "SSP245", "SSP585"] = "baseline"
+
+
+class DraftPlanCard(BaseModel):
+    """의사결정 카드 — 산주 + 정책 부록 이중 표현. 희도 D101 + Round 2 산주."""
+
+    recommended_scenario: str
+    npv_median: float
+    npv_q05: float
+    npv_q95: float
+    age_now: int
+    legal_min_age: int
+    npv_uplift_label: str
+    reasons: List[str]
+    offset_citations: Optional[List[Dict[str, Any]]] = None
+    next_actions: List[str]
+    user_preference: Literal["위험회피", "균형", "수익극대화"] = "균형"
