@@ -1,0 +1,73 @@
+{
+  "_meta": {
+    "name": "Harvested Wood Products (HWP) First-order Decay Half-life",
+    "decision_id": "D15",
+    "source_primary": "IPCC 2019 Refinement to 2006 Guidelines, Vol 4 Ch12 Table 12.2",
+    "source_korea": "국립산림과학원 (2021) 「목재제품의 탄소저장량 산정 방법」 + 한국 「국가 온실가스 인벤토리 보고서」 침엽수 평균",
+    "source_share": "산림청 「임산물 생산조사」 2023 — 한국 침엽수 제품 분배 비율 추정",
+    "validation_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8666044/",
+    "law_basis": "「산림자원의 조성 및 관리에 관한 법률」 시행규칙 별표 9 (탄소저장량 산정)",
+    "version": "2019 Refinement (released 2019-05)",
+    "fetched_at": "2026-05-20",
+    "decay_model": "First-order exponential decay: L_C(T) = Σ HWP_i · (1 − exp(−ln2 · t / h_i))",
+    "limitations": [
+      "한국 침엽수 제품 분배 비율 (제재목 60% / 합판 25% / 종이 15%) 은 추정값 — 실제 산림청 통계 다운로드 후 갱신",
+      "활엽수 (참나무류) 미반영 — 향후 분리",
+      "한국 국가 인벤토리 보고서의 실측 half-life 28년 (제재목) 은 IPCC 35년 default 와 -20% 차이",
+      "이 룰베이스는 *IPCC default* 기준. 민감도 분석에서 ±10년 시연 권장"
+    ]
+  },
+  "products": {
+    "sawnwood": {
+      "korean_name": "제재목",
+      "half_life_years": 35,
+      "half_life_years_2006": 30,
+      "default_share_for_conifer": 0.60,
+      "share_source": "산림청 임산물생산조사 평균 추정",
+      "uncertainty_years_for_sensitivity": 10,
+      "source": "IPCC 2019 Refinement Vol4 Ch12 Table 12.2",
+      "korea_observed_half_life": 28,
+      "korea_observed_note": "국립산림과학원 2021 한국 침엽수 평균값 — IPCC 35년 default 의 80%"
+    },
+    "wood_based_panels": {
+      "korean_name": "합판/파티클보드/OSB",
+      "half_life_years": 25,
+      "half_life_years_2006": 30,
+      "default_share_for_conifer": 0.25,
+      "share_source": "산림청 임산물생산조사 평균 추정",
+      "uncertainty_years_for_sensitivity": 5,
+      "source": "IPCC 2019 Refinement Vol4 Ch12 Table 12.2",
+      "note": "2006 → 2019 에서 30 → 25년으로 *감소* (refinement)"
+    },
+    "paper": {
+      "korean_name": "종이/펄프/판지",
+      "half_life_years": 2,
+      "half_life_years_2006": 2,
+      "default_share_for_conifer": 0.15,
+      "share_source": "산림청 임산물생산조사 평균 추정",
+      "uncertainty_years_for_sensitivity": 1,
+      "source": "IPCC 2019 Refinement Vol4 Ch12 Table 12.2",
+      "note": "한국 펄프산업 평균과 동일 (2년)"
+    }
+  },
+  "carbon_conversion": {
+    "carbon_fraction_dry_matter": 0.50,
+    "co2_to_c_ratio": 0.2727,
+    "c_to_co2_ratio": 3.667,
+    "_note": "AGB (Mg/ha) × 0.50 = tC/ha. tC × 3.667 = tCO₂. carbon_uptake_rate (tCO₂/ha/yr) 는 이미 변환된 값."
+  },
+  "computation_example": {
+    "scenario": "강원지방소나무 50년 1ha 벌채, 탄소 stock 80 tC/ha (= 293 tCO₂)",
+    "step_1_distribution": {
+      "sawnwood_tC": 48.0,
+      "wood_based_panels_tC": 20.0,
+      "paper_tC": 12.0
+    },
+    "step_2_decay_at_t_30y": {
+      "sawnwood_remaining": "48 × exp(-ln2 · 30 / 35) = 48 × 0.553 = 26.5 tC",
+      "panels_remaining": "20 × exp(-ln2 · 30 / 25) = 20 × 0.435 = 8.7 tC",
+      "paper_remaining": "12 × exp(-ln2 · 30 / 2) = 12 × 2.84e-5 ≈ 0 tC"
+    },
+    "step_3_total_remaining_at_30y": "35.2 tC (44% of 80 tC), released = 44.8 tC = 164 tCO₂"
+  }
+}

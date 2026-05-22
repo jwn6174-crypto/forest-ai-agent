@@ -1,0 +1,79 @@
+{
+  "_meta": {
+    "decision_id": "D22",
+    "source": "carbonregistry.forest.go.kr 산림탄소상쇄 등록부 658건 (사용자 제공 2026-05-20)",
+    "filter_criteria": [
+      "(a) 사업유형 = 벌기령 연장 산림경영 (정책학자 D17, 한국 99% 비중)",
+      "(b) 지역 = 충북 보은 (1차) / 전북 진안 (2차) / 인접 충북·전북",
+      "(c) 참여유형 = 거래 (인증실적 공개, 정량 비교 가능)",
+      "(d) 면적 1-100ha (영세 사유림 대표)",
+      "(e) 사업개시 2018+ (방법론 v2.0) — 본 데이터로는 직접 확인 불가, 거래 사업으로 proxy"
+    ],
+    "w6_validation_workflow": [
+      "1. 본 case 의 location (시·군·면·리) 좌표 추출 (VWorld 행정구역 검색)",
+      "2. 위 좌표에서 사업 면적 만큼의 polygon 정의",
+      "3. Module C compute_lev() 호출 — 강원소나무 30+ 평균 시나리오",
+      "4. 모델 추정 흡수량 (carbon_revenue / 30년 / area_ha) vs 인증 흡수량 (tco2 / area / 30) 비교",
+      "5. 차이 < 30% 일 시 모델 valid 주장, > 30% 일 시 limitations 정직 명시"
+    ]
+  },
+  "primary_validation_case": {
+    "id": "FCR_43_BOEUN_001",
+    "project_type": "산림경영 > 벌기령연장",
+    "transaction_type": "거래 (인증)",
+    "total_absorption_tco2": 8197,
+    "estimated_area_ha": 25.6,
+    "estimated_uptake_tco2_per_ha_per_30yr": 320,
+    "estimated_uptake_tco2_per_ha_per_yr": 10.67,
+    "location_raw": "충청북도 보은군 산외면 오대리 산39 외 2필지",
+    "province_code": "43",
+    "sigungu": "보은군",
+    "town": "산외면",
+    "ri": "오대리",
+    "lot_id": "산39 외 2필지",
+    "model_vs_certified": {
+      "model_prediction_strategy": "강원지방소나무 30→60년 30년 시나리오 연장KOC, 정우 carbon_uptake_rate 2003/2024 사용",
+      "expected_model_tco2_per_ha_per_yr": "10.77 (피크 30년) → 4.92 (50년) → 7.35 (60년) — 평균 ~7.7 tCO₂/ha/yr",
+      "expected_model_30yr_total": "약 230 tCO₂/ha",
+      "certified_data_30yr": "320 tCO₂/ha (인증 8,197 / 25.6)",
+      "expected_difference_pct": "+39% (인증이 모델보다 큼) — 인증사업이 보수적 baseline 기준 추가성 인정 받았을 가능성",
+      "validation_message": "모델이 더 보수적 — 정직한 underestimation. 발표에 'Faustmann 모델은 보수적 추정' 명시"
+    }
+  },
+  "secondary_validation_cases": [
+    {
+      "id": "FCR_45_JINAN_003",
+      "project_type": "산림경영 > 벌기령연장",
+      "transaction_type": "거래",
+      "total_absorption_tco2": 4671,
+      "estimated_area_ha": 14.6,
+      "location_raw": "전라북도 진안군 용담면 와룡리 산48 외 1필지",
+      "province_code": "45",
+      "sigungu": "진안군",
+      "town": "용담면",
+      "ri": "와룡리",
+      "lot_id": "산48 외 1필지",
+      "validation_priority": "★★★ — 작은 사업 (14.6 ha) 사유림 모달 적합"
+    },
+    {
+      "id": "FCR_45_JINAN_001",
+      "project_type": "산림경영 > 벌기령연장",
+      "transaction_type": "거래",
+      "total_absorption_tco2": 18063,
+      "estimated_area_ha": 56.4,
+      "location_raw": "전라북도 진안군 상전면 구룡리 산122 외 6필지",
+      "sigungu": "진안군",
+      "town": "상전면",
+      "ri": "구룡리"
+    }
+  ],
+  "tertiary_validation_cases_chungbuk": [
+    {
+      "id": "FCR_43_JINCHEON_001",
+      "location_raw": "충청북도 진천군 광혜원면 죽현리 3-1",
+      "total_absorption_tco2": 27207,
+      "estimated_area_ha": 85.0,
+      "validation_priority": "★ — 동일 충북, 다른 시군"
+    }
+  ]
+}

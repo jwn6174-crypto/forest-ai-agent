@@ -1,0 +1,64 @@
+{
+  "_meta": {
+    "source": "data.go.kr 1160100 GetCertifiedEmissionReductionPriceInfo",
+    "fetched_at": "2026-05-20",
+    "vintages": [
+      "KAU24 (2024년 발행)",
+      "KAU25 (2025년 발행)"
+    ],
+    "wta_hurdle_won_per_tco2": 17039,
+    "wta_source": "박일희 (2020) 산주 의지가격"
+  },
+  "history": [
+    {
+      "period": "2025-01",
+      "vintage": "KAU24",
+      "clpr": "9500"
+    },
+    {
+      "period": "2025-01",
+      "vintage": "KAU25",
+      "clpr": "9490"
+    },
+    {
+      "period": "2025-04",
+      "vintage": "KAU24",
+      "clpr": "8790"
+    },
+    {
+      "period": "2025-04",
+      "vintage": "KAU25",
+      "clpr": "9490"
+    },
+    {
+      "period": "2025-07",
+      "vintage": "KAU24",
+      "clpr": "8410"
+    },
+    {
+      "period": "2025-07",
+      "vintage": "KAU25",
+      "clpr": "8670"
+    },
+    {
+      "period": "2025-10",
+      "vintage": "KAU25",
+      "clpr": "10350"
+    },
+    {
+      "period": "2025-12",
+      "vintage": "KAU25",
+      "clpr": "10400"
+    },
+    {
+      "period": "2026-01",
+      "vintage": "KAU25",
+      "clpr": "12400"
+    },
+    {
+      "period": "2026-03",
+      "vintage": "KAU25",
+      "clpr": "15550"
+    }
+  ]
+}

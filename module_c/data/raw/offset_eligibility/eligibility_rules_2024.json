@@ -1,0 +1,151 @@
+{
+  "_meta": {
+    "name": "산림탄소상쇄제도 8 사업유형 적용 룰베이스",
+    "decision_id": "D16",
+    "source_primary": "산림청 「산림탄소상쇄 운영지침 (2024)」 — 8 사업유형 (2025.1.2 기준)",
+    "source_secondary": "정우 carbon_chunks.jsonl 281 청크 (RAG 보완 — 모호한 경우)",
+    "law_basis": "「탄소흡수원의 유지 및 증진에 관한 법률」 제8-10조, 시행령 제15-18조",
+    "operator": "한국임업진흥원 산림탄소센터",
+    "fetched_at": "2026-05-20",
+    "matching_strategy": "룰베이스 80% + 정우 RAG 검색 20% hybrid",
+    "limitations": [
+      "정확한 운영지침 2024 PDF 미확보 — 정우 RAG 청크 + 공개 자료 기반 추정",
+      "사용자(희도)가 산림청·임업진흥원 PDF 확보 후 정밀 룰 갱신 권장",
+      "사업 신청·인증 절차의 세부 (모니터링·검증 회수 등) 별도 RAG 검색 필요",
+      "8 사업유형 적용 가능성은 *기본 자격* — 실제 인증은 한국임업진흥원 심사"
+    ]
+  },
+  "project_types": {
+    "afforestation_reforestation": {
+      "korean": "신규조림·재조림",
+      "code": "AR",
+      "rules": {
+        "land_history": "1990년 이전 무립목지(naked) 또는 무수목 5년 이상",
+        "species": "all (한국 자생/도입 모두)",
+        "current_age_max": 0,
+        "min_area_ha": 0.5,
+        "ownership_required": ["사유림", "공유림"],
+        "exclude_if": ["산림 전용지 (산지전용 허가지)", "기존 산림 벌채 후 즉시 식재 (수종갱신 분류)"]
+      },
+      "verification": "rule_based",
+      "monitoring_frequency": "5년 주기",
+      "credit_period_years": 30,
+      "applicable_to_demo": ["민둥산 + 신규 재조림 시나리오"]
+    },
+    "forest_management_rotation": {
+      "korean": "벌기령 연장 산림경영",
+      "code": "FM-Rotation",
+      "rules": {
+        "current_age_min": "법정 기준벌기령 - 10",
+        "extension_years": 10,
+        "extension_years_min": 10,
+        "extension_years_max": 30,
+        "species": "all",
+        "min_area_ha": 0.5,
+        "forest_plan_required": true
+      },
+      "verification": "rule_based",
+      "monitoring_frequency": "5년 주기",
+      "credit_period_years": "벌기령 연장 기간",
+      "applicable_to_demo": ["boeun_pine_30y_1.5ha (30 + 10 = 40년)", "boeun_pine_50y (이미 도달, 50+10=60년)"],
+      "korea_market_share": 0.99,
+      "korea_market_note": "한국 산림탄소상쇄 인증실적 99% 가 이 사업유형. KAU 17,200원 × WTA 17,039원 = 161원 margin"
+    },
+    "vegetation_restoration": {
+      "korean": "식생복구",
+      "code": "VR",
+      "rules": {
+        "land_history": "산불·산사태·병해충 피해지 + 자연복원 불가",
+        "current_age_max": 5,
+        "species": "all",
+        "min_area_ha": 0.5,
+        "natural_recovery_impossible": true
+      },
+      "verification": "RAG",
+      "monitoring_frequency": "3년 주기",
+      "credit_period_years": 30
+    },
+    "wood_products": {
+      "korean": "목제품 이용",
+      "code": "WP",
+      "rules": {
+        "owner_intent": "벌채목을 *장기 저장 목제품* (제재목·합판·건축자재) 로 활용",
+        "species": "all",
+        "wood_processing_contract": "필수 — 가공시설과 계약",
+        "min_area_ha": 1.0
+      },
+      "verification": "RAG",
+      "monitoring_frequency": "연 1회 (HWP 추적)",
+      "credit_period_years": 30,
+      "note": "HWP carbon decay 와 연결 — half-life 35년 적용"
+    },
+    "forest_biomass": {
+      "korean": "산림 바이오매스 이용",
+      "code": "FB",
+      "rules": {
+        "owner_intent": "벌채목·간벌재를 *바이오매스 에너지* (펠릿·열병합) 로 활용",
+        "fossil_fuel_substitution": true,
+        "species": "all",
+        "min_area_ha": 1.0
+      },
+      "verification": "RAG",
+      "monitoring_frequency": "연 1회",
+      "credit_period_years": 30
+    },
+    "species_conversion": {
+      "korean": "수종 갱신",
+      "code": "SC",
+      "rules": {
+        "current_species": "any",
+        "target_species": "고탄소 흡수 수종 (참나무류, 잣나무, 편백)",
+        "species_change_required": true,
+        "current_age_min": "법정 기준벌기령 이상",
+        "min_area_ha": 0.5
+      },
+      "verification": "rule_based",
+      "monitoring_frequency": "5년 주기",
+      "credit_period_years": 30,
+      "applicable_to_demo": ["리기다소나무 → 참나무류 전환"]
+    },
+    "fire_damage_planting": {
+      "korean": "산불피해지 조림",
+      "code": "FDP",
+      "rules": {
+        "land_history": "산불 피해 후 5년 이내",
+        "species": "all (내화수종 권장)",
+        "min_area_ha": 0.5,
+        "natural_recovery_impossible": true
+      },
+      "verification": "RAG",
+      "monitoring_frequency": "3년 주기",
+      "credit_period_years": 30
+    },
+    "land_use_avoidance": {
+      "korean": "산지전용 억제",
+      "code": "LUA",
+      "rules": {
+        "owner_intent": "산지전용 허가 가능 → 유지",
+        "alternative_use_available": true,
+        "species": "all",
+        "min_area_ha": 1.0
+      },
+      "verification": "RAG",
+      "monitoring_frequency": "연 1회",
+      "credit_period_years": 30
+    }
+  },
+  "matching_function_pseudocode": {
+    "input": "stand_state {species, age, area_ha, ownership, current_use, history}",
+    "rule_based_first": [
+      "AR if (age == 0 and history == 'no_forest_1990') → eligible",
+      "FM-Rotation if (age >= legal_min - 10) → eligible (extension)",
+      "SC if (age >= legal_min and target_species_changed) → eligible",
+      "FDP if (fire_history_within_5yr) → eligible"
+    ],
+    "rag_fallback": [
+      "WP if (owner_intent in input) → 정우 RAG 검색 'wood_products' 청크",
+      "FB if (biomass_intent) → 정우 RAG 검색 'forest_biomass'",
+      "VR/LUA → 정우 RAG 청크 검색"
+    ]
+  }
+}

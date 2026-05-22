@@ -1,0 +1,85 @@
+{
+  "_meta": {
+    "name": "Korean Forestry Subsidy Rates 2025",
+    "decision_id": "D18",
+    "source_primary": "산림청 「2025 산림보조사업 지침」 (forest.go.kr 통합자료실)",
+    "source_secondary": "충북도 산림과 보조사업 안내",
+    "source_tertiary": "산림조합중앙회 보조사업 시행단가",
+    "law_basis": "「산림자원의 조성 및 관리에 관한 법률」 제35조, 시행령 제32-33조",
+    "fiscal_year": 2025,
+    "fetched_at": "2026-05-20",
+    "limitations": [
+      "정확한 2025 지침 PDF 미확보 — 2024 지침과 산림청 공개 단가 + 경영자 deliberation 결과 기반 추정",
+      "사용자(희도)가 산림청 통합자료실에서 원문 PDF 확보 후 정밀 값 갱신 권장",
+      "지역 보조 (도·시군) 추가 분 미반영 — regional_bonus 로 별도 반영",
+      "신청 자격 (산림경영계획 인가 등) 별도 검증 필요"
+    ]
+  },
+  "subsidies_won_per_ha": {
+    "thinning_1st": {
+      "amount": 2500000,
+      "korean": "1차 솎아베기 (간벌)",
+      "applicable_age": "20-40년생",
+      "frequency": "1회 (영급별)",
+      "min_intensity": "본수 30-40% 제거",
+      "applicable_action": "thinning",
+      "source": "산림청 2025 지침 (추정)",
+      "note": "보은 산주의 경영자 deliberation 권고 — 영세 사유림 7할이 신청"
+    },
+    "thinning_2nd": {
+      "amount": 2000000,
+      "korean": "2차 솎아베기",
+      "applicable_age": "30-50년생",
+      "frequency": "1회",
+      "min_intensity": "본수 20-30% 제거",
+      "applicable_action": "thinning"
+    },
+    "young_tree_care": {
+      "amount": 1800000,
+      "korean": "어린나무 가꾸기",
+      "applicable_age": "5-15년생",
+      "frequency": "1회",
+      "applicable_action": "tending",
+      "note": "조림 후 5-10년차 권장"
+    },
+    "weeding": {
+      "amount": 900000,
+      "korean": "풀베기",
+      "applicable_age": "1-3년생",
+      "frequency": "3회 (1·2·3년차)",
+      "applicable_action": "weeding",
+      "annual_or_total": "annual"
+    },
+    "reforestation_seedling": {
+      "amount": 4500000,
+      "korean": "재조림 (식재+풀베기 5년차까지 통합)",
+      "applicable_action": "planting",
+      "components": {
+        "seedlings_4000_per_ha": "1.7-4.9M (수종별)",
+        "planting_labor": "1.5M",
+        "weeding_3yr": "2.7M (0.9M × 3)"
+      },
+      "note": "정우 cost_function 의 regen 항과 *중복 가능* — 매출/비용 분리 주의"
+    },
+    "pruning": {
+      "amount": 800000,
+      "korean": "가지치기",
+      "applicable_age": "10-30년생",
+      "frequency": "1-2회",
+      "applicable_action": "pruning"
+    }
+  },
+  "regional_bonus": {
+    "충북": {"rate": 0.10, "source": "충북도 산림과 자체 보조"},
+    "전북": {"rate": 0.05, "source": "전북도 산림과"},
+    "강원": {"rate": 0.15, "source": "강원도 산림과 (산림산업 활성화)"},
+    "기타": {"rate": 0.0}
+  },
+  "application_rules": {
+    "ownership_required": ["사유림", "공유림"],
+    "min_area_ha": 0.5,
+    "forest_plan_required": true,
+    "concurrent_limit": "동일 임지 동일 작업은 5년 1회",
+    "application_route": "산림조합 위탁 → 시군구청 → 산림청"
+  }
+}
