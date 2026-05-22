@@ -1,0 +1,211 @@
+{
+  "_meta": {
+    "source": "carbonregistry.forest.go.kr 산림탄소상쇄 등록사업 (사용자 직접 제공 2026-05-20)",
+    "total_count_in_registry": 658,
+    "captured_count": 658,
+    "decision_id": "D22",
+    "fetched_at": "2026-05-20",
+    "filter_criteria_for_validation": [
+      "사업유형 = 벌기령 연장 산림경영 (한국 인증실적 99%)",
+      "지역 = 충북 보은 / 전북 진안 / 인근 충북·전북·강원",
+      "참여유형 = 거래 (인증실적 공개)",
+      "면적 1-100ha (영세 사유림 대표)"
+    ],
+    "absorption_rate_assumptions": {
+      "rotation_extension": "10.77 tCO₂/ha/yr × 30년 ≈ 320 tCO₂/ha (강원소나무 30년 평균)",
+      "species_conversion": "6 × 30 = 180 tCO₂/ha",
+      "reforestation": "25 × 20 = 500 tCO₂/ha",
+      "afforestation": "25 × 30 = 750 tCO₂/ha",
+      "vegetation_restoration": "5 × 20 = 100 tCO₂/ha"
+    }
+  },
+  "type_distribution_estimate": {
+    "_note": "사용자 제공 658건 텍스트에서 직접 grep + count",
+    "산림경영_벌기령연장": "200+건 (대부분 거래) — 한국 인증실적 99% 차지",
+    "산림경영_벌기령연장+수종갱신": "30+건",
+    "산림경영_수종갱신": "20+건",
+    "산림경영_택벌림경영": "1건 (강원도 인제군)",
+    "식생복구": "200+건 (대부분 비거래) — 도로변·도시공원 등",
+    "재조림": "50+건",
+    "신규조림": "10+건",
+    "산림바이오매스_에너지이용": "3건",
+    "목제품_이용": "5건",
+    "산불피해지_조림": "1건 (경상북도 울진군)"
+  },
+  "regional_distribution_estimate": {
+    "강원도": "100+건 (벌기연장 거래 다수 — 정선·평창·인제·홍천·횡성·원주)",
+    "충청북도": "40+건 (보은 2 + 영동 다수 + 제천 + 진천 + 괴산 + 단양)",
+    "전라북도": "20+건 (진안 8 + 완주 + 남원 + 무주 + 익산 + 임실 + 장수 + 순창)",
+    "전라남도": "150+건 (식생복구 도로변 + 보성 큰 사업 + 화순 + 담양 + 해남)",
+    "경상북도": "100+건 (벌기연장 다수 — 안동·문경·청송·울진·봉화·상주·포항)",
+    "경상남도": "50+건 (함양·거창·산청·합천·고성·의령)",
+    "충청남도": "20+건 (금산 + 천안 + 청양 + 홍성)"
+  },
+  "projects_target_area": {
+    "_note": "W6 검증 case 후보 — 보은·진안 + 인접 충북·전북·강원 정선 (학술적 적정)",
+    "boeun_chungbuk": [
+      {
+        "id": "FCR_43_BOEUN_001",
+        "project_type": "산림경영 > 벌기령연장",
+        "category": "forest_management",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 8197,
+        "estimated_area_ha": 25.6,
+        "estimated_avg_uptake_tco2_per_ha_per_yr": 10.7,
+        "location_raw": "충청북도 보은군 산외면 오대리 산39 외 2필지",
+        "province": "충청북도",
+        "province_code": "43",
+        "sigungu": "보은군",
+        "town": "산외면",
+        "ri": "오대리",
+        "validation_priority": "★★★ — 보은+벌기연장+거래, 가장 적정"
+      },
+      {
+        "id": "FCR_43_BOEUN_002",
+        "project_type": "산림경영 > 벌기령연장",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 63658,
+        "estimated_area_ha": 198.9,
+        "location_raw": "충청북도 보은군 산외면 원평리 11 외 11필지",
+        "province_code": "43",
+        "sigungu": "보은군",
+        "town": "산외면",
+        "ri": "원평리",
+        "validation_priority": "★★ — 큰 사업 규모 (198 ha)"
+      }
+    ],
+    "jinan_jeonbuk": [
+      {
+        "id": "FCR_45_JINAN_001",
+        "project_type": "산림경영 > 벌기령연장",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 18063,
+        "estimated_area_ha": 56.4,
+        "location_raw": "전라북도 진안군 상전면 구룡리 산122 번지 외 6필지",
+        "province_code": "45",
+        "sigungu": "진안군",
+        "town": "상전면",
+        "ri": "구룡리",
+        "validation_priority": "★★★ — 진안+벌기연장+거래"
+      },
+      {
+        "id": "FCR_45_JINAN_002",
+        "project_type": "산림경영 > 수종갱신",
+        "sub_type": "species_conversion",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 586985,
+        "estimated_area_ha": 3261.0,
+        "location_raw": "전라북도 진안군 용담면 송풍리 산172-1임 외 328필지",
+        "province_code": "45",
+        "sigungu": "진안군",
+        "town": "용담면",
+        "ri": "송풍리",
+        "validation_priority": "★★ — 매우 큰 수종갱신 (3,261 ha, 328 필지)"
+      },
+      {
+        "id": "FCR_45_JINAN_003",
+        "project_type": "산림경영 > 벌기령연장",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 4671,
+        "estimated_area_ha": 14.6,
+        "location_raw": "전라북도 진안군 용담면 와룡리 산48 외 1필지",
+        "province_code": "45",
+        "sigungu": "진안군",
+        "town": "용담면",
+        "ri": "와룡리",
+        "validation_priority": "★★★ — 작은 사업 규모 (14.6 ha), 사유림 모달 적합"
+      },
+      {
+        "id": "FCR_45_JINAN_004",
+        "project_type": "산림경영 > 벌기령연장+수종갱신",
+        "sub_type": "rotation_extension+species_conversion",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 3490,
+        "estimated_area_ha": 10.9,
+        "location_raw": "전라북도 진안군 주천면 대불리 산67",
+        "province_code": "45",
+        "sigungu": "진안군",
+        "town": "주천면",
+        "ri": "대불리",
+        "validation_priority": "★★ — 복합 사업 (벌기연장+수종갱신)"
+      },
+      {
+        "id": "FCR_45_JINAN_005",
+        "project_type": "신규조림",
+        "sub_type": "afforestation",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 3516,
+        "estimated_area_ha": 4.7,
+        "location_raw": "전라북도 진안군 주천면 신양리 480-1번지 외 127필지",
+        "province_code": "45",
+        "sigungu": "진안군",
+        "town": "주천면",
+        "ri": "신양리"
+      },
+      {
+        "id": "FCR_45_JINAN_006",
+        "project_type": "신규조림",
+        "sub_type": "afforestation",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 703,
+        "estimated_area_ha": 0.9,
+        "location_raw": "전라북도 진안군 정천면 봉학리 197번지 외 10필지",
+        "province_code": "45",
+        "sigungu": "진안군",
+        "town": "정천면",
+        "ri": "봉학리"
+      }
+    ],
+    "chungbuk_others": [
+      {
+        "id": "FCR_43_YEONGDONG_001",
+        "project_type": "산림경영 > 벌기령연장",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 487389,
+        "estimated_area_ha": 1523.1,
+        "location_raw": "충청북도 영동군 양강면 지촌리 513-1 외 78 필지",
+        "sigungu": "영동군"
+      },
+      {
+        "id": "FCR_43_YEONGDONG_002",
+        "project_type": "산림경영 > 벌기령연장",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 371880,
+        "estimated_area_ha": 1162.1,
+        "location_raw": "충청북도 영동군 영동읍 화신리 산8-1번지 외 16필지",
+        "sigungu": "영동군"
+      },
+      {
+        "id": "FCR_43_JECHEON_001",
+        "project_type": "산림경영 > 벌기령연장",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 133351,
+        "estimated_area_ha": 416.7,
+        "location_raw": "충청북도 제천시 금성면 중전리 35 외 5필지",
+        "sigungu": "제천시"
+      },
+      {
+        "id": "FCR_43_JINCHEON_001",
+        "project_type": "산림경영 > 벌기령연장",
+        "sub_type": "rotation_extension",
+        "transaction_type": "거래",
+        "total_absorption_tco2": 27207,
+        "estimated_area_ha": 85.0,
+        "location_raw": "충청북도 진천군 광혜원면 죽현리 3-1",
+        "sigungu": "진천군"
+      }
+    ]
+  },
+  "summary_for_validation": {
+    "primary_target": "FCR_43_BOEUN_001 (보은 산외면 오대리, 8,197 tCO₂, ~25.6 ha)",
+    "secondary_target": "FCR_45_JINAN_003 (진안 용담면 와룡리, 4,671 tCO₂, ~14.6 ha)",
+    "rationale": "정책학자 D17 4 조건 + 신규: (a) 벌기연장 ✓ (b) 보은/진안 ✓ (c) 거래 ✓ (d) 면적 영세 사유림 대표 (14-25 ha) ✓"
+  }
+}

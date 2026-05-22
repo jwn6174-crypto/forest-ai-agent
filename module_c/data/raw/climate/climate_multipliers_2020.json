@@ -1,0 +1,92 @@
+{
+  "_meta": {
+    "name": "SSP Climate Growth Multipliers for Korean Tree Species",
+    "decision_id": "D11.b",
+    "source_primary": "임종환 외 (2020) 국립산림과학원 「기후변화 시나리오 하 한국 주요 수종 생장 변화 전망」",
+    "source_secondary": "IPCC AR6 WG1 (2021) Korea Regional Climate Projections",
+    "source_tertiary": "국립산림과학원 (2024) 「기후변화 적응 산림계획 가이드라인」",
+    "horizon_years": 30,
+    "baseline_period": "2020-2050 (30년 전망)",
+    "scenarios": ["baseline", "SSP126", "SSP245", "SSP585"],
+    "fetched_at": "2026-05-20",
+    "limitations": [
+      "정확한 임종환 2020 표 PDF 미확보 — 학술 참고문헌의 일반 추세 + IPCC AR6 한국 지역 투영 기반 추정",
+      "사용자(희도)가 국립산림과학원 자료실에서 원문 PDF 확보 후 정밀 값 갱신 권장",
+      "수종별 multiplier 는 30년 horizon 평균 — 5/10/15년 별 보정은 별도 모델 필요",
+      "지역 차이 (보은 vs 강원 vs 제주) 미반영 — 충북 보은은 강원소나무 분포 남방한계로 SSP245-585 에서 더 부정적"
+    ]
+  },
+  "multipliers": {
+    "강원지방소나무": {
+      "baseline": {"mean": 1.00, "std": 0.05, "range": [0.90, 1.05]},
+      "SSP126":   {"mean": 1.02, "std": 0.08, "range": [0.92, 1.10]},
+      "SSP245":   {"mean": 0.97, "std": 0.10, "range": [0.85, 1.05]},
+      "SSP585":   {"mean": 0.80, "std": 0.15, "range": [0.70, 0.90]},
+      "rationale": "남방한계 종 — 보은은 분포 남쪽. SSP245+ 에서 수분 스트레스로 생장 감소 +5~-25%"
+    },
+    "중부지방소나무": {
+      "baseline": {"mean": 1.00, "std": 0.05},
+      "SSP126":   {"mean": 1.05, "std": 0.08},
+      "SSP245":   {"mean": 1.00, "std": 0.10},
+      "SSP585":   {"mean": 0.85, "std": 0.15},
+      "rationale": "중부 분포 — 강원 종보다 기후 적응 폭 크지만 SSP585 에서 부정적"
+    },
+    "잣나무": {
+      "baseline": {"mean": 1.00, "std": 0.05},
+      "SSP126":   {"mean": 1.00, "std": 0.08},
+      "SSP245":   {"mean": 0.95, "std": 0.10},
+      "SSP585":   {"mean": 0.85, "std": 0.15},
+      "rationale": "고산성 — 분포 상한선 상승 압박, 중저고도에서 부정적"
+    },
+    "낙엽송": {
+      "baseline": {"mean": 1.00, "std": 0.05},
+      "SSP126":   {"mean": 0.95, "std": 0.08},
+      "SSP245":   {"mean": 0.80, "std": 0.10, "range": [0.75, 0.85]},
+      "SSP585":   {"mean": 0.68, "std": 0.15, "range": [0.60, 0.75]},
+      "rationale": "냉온성 — 한반도 기온 상승에 가장 취약. 정책적 수종 전환 권고 대상"
+    },
+    "리기다소나무": {
+      "baseline": {"mean": 1.00, "std": 0.05},
+      "SSP126":   {"mean": 1.05, "std": 0.08},
+      "SSP245":   {"mean": 1.00, "std": 0.10},
+      "SSP585":   {"mean": 0.90, "std": 0.15},
+      "rationale": "외래수종 (Pinus rigida) — 미국 동부 원산, 한국 기후 적응성 양호"
+    },
+    "편백": {
+      "baseline": {"mean": 1.00, "std": 0.05},
+      "SSP126":   {"mean": 1.10, "std": 0.08},
+      "SSP245":   {"mean": 1.05, "std": 0.10},
+      "SSP585":   {"mean": 0.95, "std": 0.15},
+      "rationale": "남부 수종 — 분포 북상 가능, SSP126-245 에서 긍정"
+    },
+    "참나무류": {
+      "baseline": {"mean": 1.00, "std": 0.05},
+      "SSP126":   {"mean": 1.10, "std": 0.08},
+      "SSP245":   {"mean": 1.15, "std": 0.10, "range": [1.05, 1.25]},
+      "SSP585":   {"mean": 1.10, "std": 0.15, "range": [1.00, 1.20]},
+      "rationale": "활엽수 — 열적 유리, SSP 시나리오 전반에 +5~+25% 생장. 정책적 수종 전환 대상"
+    },
+    "상수리나무": "참나무류 동일",
+    "신갈나무": "참나무류 동일",
+    "굴참나무": "참나무류 동일",
+    "자작나무": {
+      "baseline": {"mean": 1.00, "std": 0.10},
+      "SSP126":   {"mean": 0.95, "std": 0.15},
+      "SSP245":   {"mean": 0.85, "std": 0.20},
+      "SSP585":   {"mean": 0.70, "std": 0.25},
+      "rationale": "냉온성 — 낙엽송과 유사하게 한반도 기온 상승에 취약"
+    },
+    "백합나무": {
+      "baseline": {"mean": 1.00, "std": 0.10},
+      "SSP126":   {"mean": 1.00, "std": 0.15},
+      "SSP245":   {"mean": 0.95, "std": 0.20},
+      "SSP585":   {"mean": 0.85, "std": 0.25},
+      "rationale": "외래수종 (튤립나무, Liriodendron) — 도시·평지 식재 위주, 임지 생장 데이터 적음"
+    }
+  },
+  "computation_pattern": {
+    "input": "growth_predict() 의 volume_trajectory, species, scenario",
+    "output": "volume_trajectory × multiplier (각 시점 별 적용 또는 30년 horizon 평균 적용)",
+    "monte_carlo_use": "MC 의 6번째 분산 source — Normal(mean, std) sampling. range 가 있으면 Triangular 권장"
+  }
+}
