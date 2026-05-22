@@ -14,7 +14,7 @@ sensitivity.py — 학술 robustness 민감도 분석.
 D25 결정 — 2026-05-20 Day 6 작성 (Manual 01 §05 학술 robustness 요건)
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from .lev_core import compute_lev_single
 
@@ -23,7 +23,7 @@ def sensitivity_site_index(
     stand: Dict,
     scenario: str,
     T: int,
-    si_range: List[int] = None,
+    si_range: List[int] | None = None,
 ) -> List[Dict]:
     """
     Site Index ±2 민감도 (산림학자).
@@ -47,12 +47,14 @@ def sensitivity_site_index(
     for si in si_range:
         s = {**stand, "site_index": si}
         r = compute_lev_single(s, scenario, T)
-        results.append({
-            "site_index": si,
-            "npv": r["npv"],
-            "lev": r["lev"],
-            "timber_revenue": r["timber_revenue"],
-        })
+        results.append(
+            {
+                "site_index": si,
+                "npv": r["npv"],
+                "lev": r["lev"],
+                "timber_revenue": r["timber_revenue"],
+            }
+        )
     return results
 
 
@@ -60,7 +62,7 @@ def sensitivity_discount_rate(
     stand: Dict,
     scenario: str,
     T: int,
-    rates: List[float] = None,
+    rates: List[float] | None = None,
 ) -> List[Dict]:
     """
     할인율 민감도 (경제학자: 0.04, 0.05, 0.06 + r=0.07 보조).
@@ -71,11 +73,13 @@ def sensitivity_discount_rate(
     results = []
     for r in rates:
         result = compute_lev_single(stand, scenario, T, discount_rate=r)
-        results.append({
-            "discount_rate": r,
-            "npv": result["npv"],
-            "lev": result["lev"],
-        })
+        results.append(
+            {
+                "discount_rate": r,
+                "npv": result["npv"],
+                "lev": result["lev"],
+            }
+        )
     return results
 
 
@@ -83,7 +87,7 @@ def sensitivity_climate_scenario(
     stand: Dict,
     scenario: str,
     T: int,
-    scenarios: List[str] = None,
+    scenarios: List[str] | None = None,
 ) -> List[Dict]:
     """
     SSP 기후 multiplier 민감도 (산림학자 D11.b).
@@ -94,12 +98,14 @@ def sensitivity_climate_scenario(
     results = []
     for ssp in scenarios:
         result = compute_lev_single(stand, scenario, T, climate_scenario=ssp)
-        results.append({
-            "climate_scenario": ssp,
-            "climate_multiplier": result["climate_multiplier_applied"],
-            "npv": result["npv"],
-            "lev": result["lev"],
-        })
+        results.append(
+            {
+                "climate_scenario": ssp,
+                "climate_multiplier": result["climate_multiplier_applied"],
+                "npv": result["npv"],
+                "lev": result["lev"],
+            }
+        )
     return results
 
 
@@ -107,7 +113,7 @@ def sensitivity_kau_price(
     stand: Dict,
     scenario: str,
     T: int,
-    kau_prices: List[float] = None,
+    kau_prices: List[float] | None = None,
 ) -> List[Dict]:
     """
     KAU 가격 민감도 (경제학자 + D23).
@@ -127,14 +133,16 @@ def sensitivity_kau_price(
         result = compute_lev_single(stand, scenario, T)
         koc_est = kau * 0.7
         margin = kau - 17039
-        results.append({
-            "kau_price": kau,
-            "koc_estimate": koc_est,
-            "wta_margin": margin,
-            "wta_passed": margin > 0,
-            "npv_at_baseline": result["npv"],
-            "_note": f"KAU={kau} → KOC={koc_est:.0f} → WTA margin={margin:+d}",
-        })
+        results.append(
+            {
+                "kau_price": kau,
+                "koc_estimate": koc_est,
+                "wta_margin": margin,
+                "wta_passed": margin > 0,
+                "npv_at_baseline": result["npv"],
+                "_note": f"KAU={kau} → KOC={koc_est:.0f} → WTA margin={margin:+d}",
+            }
+        )
     return results
 
 
@@ -142,7 +150,7 @@ def sensitivity_hwp_half_life(
     stand: Dict,
     scenario: str,
     T: int,
-    h_pairs: List[Dict] = None,
+    h_pairs: List[Dict] | None = None,
 ) -> List[Dict]:
     """
     HWP half-life 민감도 (경제학자 + IPCC 2019 vs 한국 데이터).
@@ -157,8 +165,6 @@ def sensitivity_hwp_half_life(
             {"label": "낙관적 (+10년)", "sawn": 45, "panel": 35, "paper": 2},
         ]
 
-    from .hwp_decay import compute_hwp_npv_contribution
-
     # carbon_stock at T (단순 추정: 강원소나무 평균)
     carbon_stock = stand.get("carbon_tc_per_ha", 100) * 3.667 * stand.get("area_ha", 1)
 
@@ -167,25 +173,31 @@ def sensitivity_hwp_half_life(
         # custom products dict
         custom = {
             "sawnwood": {"half_life_years": hp["sawn"], "default_share_for_conifer": 0.60},
-            "wood_based_panels": {"half_life_years": hp["panel"], "default_share_for_conifer": 0.25},
+            "wood_based_panels": {
+                "half_life_years": hp["panel"],
+                "default_share_for_conifer": 0.25,
+            },
             "paper": {"half_life_years": hp["paper"], "default_share_for_conifer": 0.15},
         }
         from .hwp_decay import compute_hwp_decay
+
         result = compute_hwp_decay(carbon_stock, horizon_years=30, products=custom)
-        results.append({
-            "label": hp["label"],
-            "sawn_h": hp["sawn"],
-            "panel_h": hp["panel"],
-            "hwp_remaining_30y_tco2": result["remaining_at_horizon_tco2"],
-            "hwp_released_30y_tco2": result["released_total_tco2"],
-        })
+        results.append(
+            {
+                "label": hp["label"],
+                "sawn_h": hp["sawn"],
+                "panel_h": hp["panel"],
+                "hwp_remaining_30y_tco2": result["remaining_at_horizon_tco2"],
+                "hwp_released_30y_tco2": result["released_total_tco2"],
+            }
+        )
     return results
 
 
 def full_sensitivity_report(
     stand: Dict,
     scenario: str = "연장KOC",
-    T: Optional[int] = None,
+    T: int | None = None,
 ) -> Dict:
     """
     전체 민감도 분석 — 4 차원.
@@ -203,6 +215,7 @@ def full_sensitivity_report(
     """
     if T is None:
         from .scenarios import scenario_T
+
         T = scenario_T(scenario, stand["species_dominant"], stand["age_estimate"])
 
     return {
@@ -232,15 +245,19 @@ if __name__ == "__main__":
 
     print("\n[Site Index ±2 민감도]")
     for r in report["site_index"]:
-        print(f"  SI={r['site_index']:>3d}: NPV={r['npv']/1e6:>8.1f}M LEV={r['lev']/1e6:>8.1f}M")
+        print(
+            f"  SI={r['site_index']:>3d}: NPV={r['npv'] / 1e6:>8.1f}M LEV={r['lev'] / 1e6:>8.1f}M"
+        )
 
     print("\n[할인율 민감도]")
     for r in report["discount_rate"]:
-        print(f"  r={r['discount_rate']:.2f}: NPV={r['npv']/1e6:>8.1f}M")
+        print(f"  r={r['discount_rate']:.2f}: NPV={r['npv'] / 1e6:>8.1f}M")
 
     print("\n[SSP 기후 시나리오]")
     for r in report["climate_scenario"]:
-        print(f"  {r['climate_scenario']:>8s} mult={r['climate_multiplier']:.3f}: NPV={r['npv']/1e6:>8.1f}M")
+        print(
+            f"  {r['climate_scenario']:>8s} mult={r['climate_multiplier']:.3f}: NPV={r['npv'] / 1e6:>8.1f}M"
+        )
 
     print("\n[KAU 가격 민감도 + WTA breakeven]")
     for r in report["kau_price"]:
@@ -249,8 +266,10 @@ if __name__ == "__main__":
 
     print("\n[HWP half-life 민감도]")
     for r in report["hwp_half_life"]:
-        print(f"  {r['label']:<25s} (제재목{r['sawn_h']}y/합판{r['panel_h']}y): "
-              f"30년 잔존 {r['hwp_remaining_30y_tco2']:>6.1f} tCO₂")
+        print(
+            f"  {r['label']:<25s} (제재목{r['sawn_h']}y/합판{r['panel_h']}y): "
+            f"30년 잔존 {r['hwp_remaining_30y_tco2']:>6.1f} tCO₂"
+        )
 
     print("\n" + "=" * 70)
     print("✅ 5 차원 민감도 분석 완료")

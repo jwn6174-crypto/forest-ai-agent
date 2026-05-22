@@ -15,12 +15,9 @@ W6 검증 case (D22):
 희도 D22 검증 함수 — 2026-05-20 Day 6 작성
 """
 
-from typing import Dict, List, Optional
-import math
+from typing import Dict, List
 
 from .demo_parcels import DEMO_PARCELS, list_real_parcels
-from .compute_lev import compute_lev
-from .lev_core import compute_lev_single
 
 
 def compute_model_30yr_uptake_tco2_per_ha(
@@ -58,6 +55,7 @@ def compute_model_30yr_uptake_tco2_per_ha(
     # 정우 carbon_uptake_rate 강원소나무 평균값 (lev_core.py fallback 또는 실 함수)
     try:
         from module_bd.src.growth_predict import _lookup_carbon_uptake
+
         # 30~60년 각 시점 평균
         ages = list(range(30, 61, 5))  # 30, 35, ..., 60
         rates = []
@@ -163,10 +161,14 @@ def compare_with_certified(parcel_id: str, *, verbose: bool = True) -> Dict:
     if verbose:
         print(f"\n  [{parcel_id}]")
         print(f"    {p['lot_id']}")
-        print(f"    인증: {cert_total:,} tCO₂ ÷ {area} ha = {cert_per_ha:.1f} tCO₂/ha/30yr "
-              f"({cert_per_ha/30:.2f}/yr)")
-        print(f"    모델: {model_per_ha:.1f} tCO₂/ha/30yr "
-              f"({model['model_avg_tco2_per_ha_per_yr']:.2f}/yr)")
+        print(
+            f"    인증: {cert_total:,} tCO₂ ÷ {area} ha = {cert_per_ha:.1f} tCO₂/ha/30yr "
+            f"({cert_per_ha / 30:.2f}/yr)"
+        )
+        print(
+            f"    모델: {model_per_ha:.1f} tCO₂/ha/30yr "
+            f"({model['model_avg_tco2_per_ha_per_yr']:.2f}/yr)"
+        )
         print(f"    차이: {diff_pct:+.1f}%")
         print(f"    해석: {interp}")
 
@@ -201,9 +203,10 @@ def summary_validation_report(results: List[Dict]) -> Dict:
         "min_difference_pct": round(min(abs(d) for d in diffs), 1),
         "valid_cases_lt_30pct": sum(1 for d in diffs if abs(d) < 30),
         "academic_claim": (
-            f"5/5 케이스 모두 ±30% 이내" if all(abs(d) < 30 for d in diffs)
+            "5/5 케이스 모두 ±30% 이내"
+            if all(abs(d) < 30 for d in diffs)
             else f"{sum(1 for d in diffs if abs(d) < 30)}/{len(diffs)} 케이스가 ±30% 이내 — "
-                 "나머지는 인증사업의 보수적 baseline 효과로 해석 가능"
+            "나머지는 인증사업의 보수적 baseline 효과로 해석 가능"
         ),
         "cases": [{"id": r["parcel_id"], "diff_pct": r["difference_pct"]} for r in results],
     }

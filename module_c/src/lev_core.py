@@ -16,23 +16,25 @@ lev_core.py — Faustmann–Hartman LEV 단일 시나리오 결정론 계산.
 """
 
 import math
-from typing import Dict, List, Optional
+from typing import Dict
 
-from .hwp_decay import compute_hwp_npv_contribution
 from .climate_multiplier import get_climate_multiplier
-from .ntfp_income import compute_ntfp_npv
-from .subsidies import lookup_thinning_revenue, lookup_reforestation_subsidy
 from .grade_distribution import estimate_grade_distribution
+from .hwp_decay import compute_hwp_npv_contribution
+from .ntfp_income import compute_ntfp_npv
+from .subsidies import lookup_thinning_revenue
 
 # 정우 module_bd 함수 — local 환경에서 import 실패 시 fallback
 try:
-    from module_bd.src.growth_predict import growth_predict
-    from module_bd.src.market_snapshot import market_snapshot
     from module_bd.src.cost_function import cost_function
+    from module_bd.src.growth_predict import growth_predict
     from module_bd.src.legal_rotation import rotation_age
+    from module_bd.src.market_snapshot import market_snapshot
+
     HAS_MODULE_BD = True
 except ImportError:
     HAS_MODULE_BD = False
+
     # fallback 정의 — 정우 환경에서는 실 함수 사용
     def growth_predict(species, site_index, age_now, forecast_years, climate_scenario="baseline"):
         """Fallback: 단순 임분수확표 근사 (정우 module_bd 없을 때)."""
@@ -42,14 +44,18 @@ except ImportError:
             # 강원지방소나무 SI=14 기준 근사 (정우 yield_table 평균)
             volume = max(0, age * 6.5)  # ~6.5 m³/ha/yr 평균
             dbh = max(0, age * 0.5 + 5)  # ~25cm at 40년
-            trajectory.append({
-                "age": age, "volume": volume, "dbh": dbh,
-                "height": min(age * 0.45 + 3, 30),
-                "n_per_ha": max(800, 2000 - age * 20),
-                "tmai_m3_per_ha_yr": volume / max(age, 1),
-                "carbon_uptake_rate": max(2.0, 12 - age * 0.15),  # 30년 ~10, 60년 ~3
-                "method": "fallback",
-            })
+            trajectory.append(
+                {
+                    "age": age,
+                    "volume": volume,
+                    "dbh": dbh,
+                    "height": min(age * 0.45 + 3, 30),
+                    "n_per_ha": max(800, 2000 - age * 20),
+                    "tmai_m3_per_ha_yr": volume / max(age, 1),
+                    "carbon_uptake_rate": max(2.0, 12 - age * 0.15),  # 30년 ~10, 60년 ~3
+                    "method": "fallback",
+                }
+            )
         return trajectory
 
     def market_snapshot(date_iso):
@@ -57,8 +63,12 @@ except ImportError:
         return {
             "date": date_iso,
             "timber_price": {
-                "특용재": 367000, "1등급": 199700, "2등급": 173400,
-                "3등급": 161000, "원주재": 155600, "원료재": 76400,
+                "특용재": 367000,
+                "1등급": 199700,
+                "2등급": 173400,
+                "3등급": 161000,
+                "원주재": 155600,
+                "원료재": 76400,
             },
             "timber_price_by_species": {},
             "kau_close": 17200.0,
@@ -67,8 +77,15 @@ except ImportError:
             "discount_rate": 0.05,
         }
 
-    def cost_function(volume_m3, area_ha, distance_to_road_km, action,
-                     skidding_distance_m=500, slope_class="중", species=None):
+    def cost_function(
+        volume_m3,
+        area_ha,
+        distance_to_road_km,
+        action,
+        skidding_distance_m=500,
+        slope_class="중",
+        species=None,
+    ):
         """Fallback: 정우 5/5 평균값 추정."""
         if action == "planting":
             return {
@@ -86,8 +103,10 @@ except ImportError:
         subtotal = harvest + skidding + transport + loading + regen
         return {
             "breakdown": {
-                "harvest": int(harvest), "skidding": int(skidding),
-                "transport": int(transport), "loading": int(loading),
+                "harvest": int(harvest),
+                "skidding": int(skidding),
+                "transport": int(transport),
+                "loading": int(loading),
                 "regen": int(regen),
             },
             "subtotal": int(subtotal),
@@ -100,12 +119,21 @@ except ImportError:
     def rotation_age(species, ownership="사유림"):
         """Fallback: 별표3 룰베이스 (희도 scenarios.py 와 동일)."""
         _RULES = {
-            "강원지방소나무": 40, "중부지방소나무": 40,
-            "잣나무": 60, "낙엽송": 30, "리기다소나무": 25,
-            "삼나무": 30, "편백": 40,
-            "참나무류": 25, "상수리나무": 25, "신갈나무": 25, "굴참나무": 25,
-            "포플러류": 3, "이태리포플러": 3,
-            "자작나무": 40, "백합나무": 40,
+            "강원지방소나무": 40,
+            "중부지방소나무": 40,
+            "잣나무": 60,
+            "낙엽송": 30,
+            "리기다소나무": 25,
+            "삼나무": 30,
+            "편백": 40,
+            "참나무류": 25,
+            "상수리나무": 25,
+            "신갈나무": 25,
+            "굴참나무": 25,
+            "포플러류": 3,
+            "이태리포플러": 3,
+            "자작나무": 40,
+            "백합나무": 40,
         }
         return _RULES.get(species, 40)
 
@@ -114,6 +142,7 @@ except ImportError:
 # 핵심 — Faustmann-Hartman 단일 시나리오 NPV·LEV
 # ============================================================
 
+
 def compute_lev_single(
     stand: Dict,
     scenario: str,
@@ -121,7 +150,7 @@ def compute_lev_single(
     *,
     discount_rate: float = 0.05,
     climate_scenario: str = "baseline",
-    climate_multiplier: Optional[float] = None,
+    climate_multiplier: float | None = None,
     hwp_horizon: int = 100,
     ntfp_product: str = "shiitake_oak_log",
     region: str = "충북",
@@ -195,7 +224,9 @@ def compute_lev_single(
         climate_multiplier = get_climate_multiplier(species, climate_scenario)
 
     # 성장 trajectory (0 ~ T_horizon)
-    forecast_years = list(range(0, T_horizon + 1, max(1, T_horizon // 10) if T_horizon >= 10 else 1))
+    forecast_years = list(
+        range(0, T_horizon + 1, max(1, T_horizon // 10) if T_horizon >= 10 else 1)
+    )
     if T_horizon not in forecast_years:
         forecast_years.append(T_horizon)
     growth_traj = growth_predict(species, site_index, age_now, forecast_years, climate_scenario)
@@ -214,8 +245,7 @@ def compute_lev_single(
     timber_prices = prices_by_species if prices_by_species else market["timber_price"]
 
     timber_revenue_undisc = sum(
-        timber_prices.get(grade, 0) * volume_total_T * frac
-        for grade, frac in grade_dist_T.items()
+        timber_prices.get(grade, 0) * volume_total_T * frac for grade, frac in grade_dist_T.items()
     )
     timber_revenue = timber_revenue_undisc * math.exp(-discount_rate * T_horizon)
 
@@ -256,7 +286,9 @@ def compute_lev_single(
                 delta_C = 0.0
             # 보간 (forecast_years 가 띄엄띄엄)
             interval = t_year - (growth_traj[t - 1]["age"] - age_now)
-            carbon_revenue += p_KOC * delta_C * area_ha * interval * math.exp(-discount_rate * t_year)
+            carbon_revenue += (
+                p_KOC * delta_C * area_ha * interval * math.exp(-discount_rate * t_year)
+            )
 
     # KOC > WTA 미충족 시 carbon_revenue=0 → kau_breakeven 계산
     kau_breakeven = None
@@ -268,8 +300,10 @@ def compute_lev_single(
     ntfp_revenue = 0.0
     if scenario == "임산물":
         ntfp_result = compute_ntfp_npv(
-            product=ntfp_product, duration_years=T_horizon,
-            discount_rate=discount_rate, species_host=species,
+            product=ntfp_product,
+            duration_years=T_horizon,
+            discount_rate=discount_rate,
+            species_host=species,
         )
         if ntfp_result["applicable"]:
             ntfp_revenue = ntfp_result["npv"] * area_ha
@@ -285,12 +319,17 @@ def compute_lev_single(
     # carbon stock at T = volume × 0.5 (carbon fraction) × 3.667 (C → CO2)
     carbon_stock_T = volume_per_ha_T * 0.5 * 3.667
     hwp_loss_npv = compute_hwp_npv_contribution(
-        carbon_stock_T * area_ha, T_horizon, discount_rate, p_KOC, hwp_horizon,
+        carbon_stock_T * area_ha,
+        T_horizon,
+        discount_rate,
+        p_KOC,
+        hwp_horizon,
     )  # 음수
 
     # ─── 8. NPV·LEV ──────────────────────────────────────────────
-    npv = timber_revenue + carbon_revenue + ntfp_revenue + subsidy_revenue \
-          - total_cost + hwp_loss_npv
+    npv = (
+        timber_revenue + carbon_revenue + ntfp_revenue + subsidy_revenue - total_cost + hwp_loss_npv
+    )
 
     # LEV = NPV / (1 - e^(-rT)) — T_horizon=0 시 LEV=NPV (즉시)
     if T_horizon > 0:
@@ -316,7 +355,7 @@ def compute_lev_single(
     ]
     if cost_result.get("limitations"):
         limitations.extend(cost_result["limitations"])
-    limitations = [l for l in limitations if l]
+    limitations = [item for item in limitations if item]
 
     return {
         "scenario": scenario,
@@ -343,19 +382,25 @@ def compute_lev_single(
 if __name__ == "__main__":
     print("=" * 60)
     print("lev_core.py 자가 검증")
-    print(f"  HAS_MODULE_BD = {HAS_MODULE_BD} ({'정우 함수 import 성공' if HAS_MODULE_BD else 'fallback 사용'})")
+    print(
+        f"  HAS_MODULE_BD = {HAS_MODULE_BD} ({'정우 함수 import 성공' if HAS_MODULE_BD else 'fallback 사용'})"
+    )
     print("=" * 60)
 
     # 검증 1: 보은 50년 강원소나무 즉시 — 벌기령 도달
     print("\n[검증 1] 보은 강원지방소나무 50년 1.5ha, 즉시 벌채")
     stand = {
         "species_dominant": "강원지방소나무",
-        "age_estimate": 50, "site_index": 15,
-        "area_ha": 2.0, "distance_to_road_km": 1.5,
+        "age_estimate": 50,
+        "site_index": 15,
+        "area_ha": 2.0,
+        "distance_to_road_km": 1.5,
     }
     r = compute_lev_single(stand, "즉시", T=50)
     print(f"  NPV: {r['npv']:,}원, LEV: {r['lev']:,}원")
-    print(f"  timber: {r['timber_revenue']:,}, cost: {r['total_cost']:,}, hwp_loss: {r['hwp_loss_npv']:,}")
+    print(
+        f"  timber: {r['timber_revenue']:,}, cost: {r['total_cost']:,}, hwp_loss: {r['hwp_loss_npv']:,}"
+    )
     print(f"  grade_dist: {r['grade_distribution_T']}")
 
     # 검증 2: 같은 임지 10년 후 — NPV 다름
@@ -379,7 +424,9 @@ if __name__ == "__main__":
     r_base = compute_lev_single(stand, "즉시", T=50, climate_scenario="baseline")
     r_ssp = compute_lev_single(stand, "즉시", T=50, climate_scenario="SSP585")
     print(f"  baseline NPV: {r_base['npv']:,}, SSP585 NPV: {r_ssp['npv']:,}")
-    print(f"  climate_mult: baseline={r_base['climate_multiplier_applied']}, SSP585={r_ssp['climate_multiplier_applied']}")
+    print(
+        f"  climate_mult: baseline={r_base['climate_multiplier_applied']}, SSP585={r_ssp['climate_multiplier_applied']}"
+    )
 
     print("\n" + "=" * 60)
     print("✅ lev_core.py 5/5 검증 통과 (Faustmann-Hartman 작동)")

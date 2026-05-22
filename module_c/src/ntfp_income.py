@@ -17,7 +17,7 @@ import json
 import math
 import random
 from pathlib import Path
-from typing import Dict, Literal, Optional
+from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
 NTFP_PATH = ROOT / "data" / "raw" / "ntfp" / "forest_byproduct_income_2023.json"
@@ -29,17 +29,17 @@ def _load_ntfp() -> dict:
 
 
 NTFP_Product = Literal[
-    "shiitake_oak_log",   # 표고 (S5a)
-    "pine_mushroom",      # 송이 (S5b)
-    "wild_ginseng_short", # 산양삼 (S5c)
-    "wild_vegetables",    # 산나물 (S5d)
-    "chestnut",           # 밤 (S5e)
+    "shiitake_oak_log",  # 표고 (S5a)
+    "pine_mushroom",  # 송이 (S5b)
+    "wild_ginseng_short",  # 산양삼 (S5c)
+    "wild_vegetables",  # 산나물 (S5d)
+    "chestnut",  # 밤 (S5e)
 ]
 
 
 def lookup_ntfp(
     product: NTFP_Product = "shiitake_oak_log",
-    species_host: str = None,
+    species_host: str | None = None,
     region: str = "충북 보은",
 ) -> dict:
     """
@@ -95,14 +95,16 @@ def lookup_ntfp(
         "p25": float(income.get("p25", income.get("min", 0))),
         "p75": float(income.get("p75", income.get("max", 0))),
         "std": float(p.get("std_estimate", income.get("mean", 0) * 0.2)),
-        "peak_year_after_inoculation": p.get("peak_year_after_inoculation", p.get("peak_year_after_planting", 1)),
+        "peak_year_after_inoculation": p.get(
+            "peak_year_after_inoculation", p.get("peak_year_after_planting", 1)
+        ),
         "yield_period_years": p.get("yield_period_years", 5),
         "carbon_impact_on_pine": p.get("carbon_impact_on_pine", "neutral"),
         "applicable_to_species": is_applicable,
         "applicable_hosts": applicable_hosts,
         "scenario_label": p.get("scenario_label", "S5"),
         "source": p.get("source_korea"),
-        "region_note": f"전국 평균 (보은 추가 보정 미적용)",
+        "region_note": "전국 평균 (보은 추가 보정 미적용)",
     }
 
 
@@ -110,8 +112,8 @@ def compute_ntfp_npv(
     product: NTFP_Product,
     duration_years: int,
     discount_rate: float = 0.05,
-    species_host: str = None,
-    rng: Optional[random.Random] = None,
+    species_host: str | None = None,
+    rng: random.Random | None = None,
     sample: bool = False,
 ) -> dict:
     """
@@ -156,7 +158,7 @@ def compute_ntfp_npv(
     if sample and rng is not None:
         # Lognormal sampling (Y > 0 보장)
         sigma = math.log(1 + (info["std"] / annual_mean) ** 2) ** 0.5 if annual_mean > 0 else 0.3
-        mu = math.log(annual_mean) - sigma ** 2 / 2 if annual_mean > 0 else 0
+        mu = math.log(annual_mean) - sigma**2 / 2 if annual_mean > 0 else 0
         annual = rng.lognormvariate(mu, sigma) if annual_mean > 0 else 0
     else:
         annual = annual_mean
@@ -222,7 +224,10 @@ if __name__ == "__main__":
     # 검증 5: MC sampling
     print("\n[검증 5] MC sampling 10회 (Lognormal)")
     rng = random.Random(42)
-    samples = [compute_ntfp_npv("shiitake_oak_log", 15, 0.05, "참나무류", rng, sample=True) for _ in range(10)]
+    samples = [
+        compute_ntfp_npv("shiitake_oak_log", 15, 0.05, "참나무류", rng, sample=True)
+        for _ in range(10)
+    ]
     npvs = [s["npv"] for s in samples]
     print(f"  NPV 분포: min={min(npvs):,}, median={sorted(npvs)[5]:,}, max={max(npvs):,}")
 

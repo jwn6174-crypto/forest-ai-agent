@@ -14,7 +14,8 @@ from typing import Dict, List, Tuple
 
 try:
     import numpy as np
-    from scipy.stats import qmc, lognorm, norm, triang
+    from scipy.stats import lognorm, norm, qmc, triang
+
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
@@ -69,7 +70,7 @@ def transform_uniform_to_distribution(
             if m <= 0:
                 return 0.0
             sigma = math.sqrt(math.log(1 + (s / m) ** 2))
-            mu = math.log(m) - sigma ** 2 / 2
+            mu = math.log(m) - sigma**2 / 2
         return lognorm.ppf(u, s=sigma, scale=math.exp(mu))
 
     if dist_type == "normal":
@@ -153,9 +154,10 @@ if __name__ == "__main__":
 
         # 검증 2: Lognormal 변환 (양수)
         print("\n[검증 2] Lognormal — 모두 양수")
-        vals = [transform_uniform_to_distribution(u, "lognormal",
-                                                  {"mean": 200_000, "std": 20_000})
-                for u in [0.05, 0.5, 0.95]]
+        vals = [
+            transform_uniform_to_distribution(u, "lognormal", {"mean": 200_000, "std": 20_000})
+            for u in [0.05, 0.5, 0.95]
+        ]
         print(f"  q05, median, q95: {[int(v) for v in vals]}")
         assert all(v > 0 for v in vals)
         assert vals[0] < vals[2]
@@ -163,19 +165,21 @@ if __name__ == "__main__":
         # 검증 3: 6D LHS
         print("\n[검증 3] 6D LHS 300 samples")
         dists = {
-            "agb_mg":         ("triangular", {"min": 80, "mode": 100, "max": 120}),
-            "timber_price":   ("lognormal", {"mean": 199_700, "std": 19_970}),
-            "koc_price":      ("lognormal", {"mean": 12_040, "std": 1806}),
-            "ntfp_annual":    ("lognormal", {"mean": 5_500_000, "std": 1_500_000}),
-            "discount_rate":  ("triangular", {"min": 0.04, "mode": 0.05, "max": 0.06}),
-            "climate_mult":   ("normal", {"mean": 1.0, "std": 0.10}),
+            "agb_mg": ("triangular", {"min": 80, "mode": 100, "max": 120}),
+            "timber_price": ("lognormal", {"mean": 199_700, "std": 19_970}),
+            "koc_price": ("lognormal", {"mean": 12_040, "std": 1806}),
+            "ntfp_annual": ("lognormal", {"mean": 5_500_000, "std": 1_500_000}),
+            "discount_rate": ("triangular", {"min": 0.04, "mode": 0.05, "max": 0.06}),
+            "climate_mult": ("normal", {"mean": 1.0, "std": 0.10}),
         }
         samples = generate_lhs_samples_6d(300, dists, seed=42)
         print(f"  생성: {len(samples)} samples")
         print(f"  첫 sample 키: {list(samples[0].keys())}")
-        print(f"  agb_mg 평균: {sum(s['agb_mg'] for s in samples)/len(samples):.1f}")
-        print(f"  timber_price 평균: {sum(s['timber_price'] for s in samples)/len(samples):,.0f}")
-        print(f"  discount_rate 평균: {sum(s['discount_rate'] for s in samples)/len(samples):.4f}")
+        print(f"  agb_mg 평균: {sum(s['agb_mg'] for s in samples) / len(samples):.1f}")
+        print(f"  timber_price 평균: {sum(s['timber_price'] for s in samples) / len(samples):,.0f}")
+        print(
+            f"  discount_rate 평균: {sum(s['discount_rate'] for s in samples) / len(samples):.4f}"
+        )
         assert len(samples) == 300
 
     print("\n" + "=" * 60)

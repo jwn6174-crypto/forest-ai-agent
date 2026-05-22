@@ -12,7 +12,7 @@ LEV = LEV_no_carbon + (KAU × ratio_carbon)
 희도 D-경제학 결정 — 2026-05-20 Day 6 작성
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 
 def compute_kau_breakeven(
@@ -70,7 +70,7 @@ def compute_kau_breakeven(
             "margin_to_wta": kau_used - wta_hurdle,
             "margin_to_breakeven_pct": None,
             "warning": "carbon_revenue=0 — 이 시나리오는 KAU 변동 영향 없음 "
-                       "(KOC < WTA hurdle 미충족)",
+            "(KOC < WTA hurdle 미충족)",
         }
 
     # linear sensitivity 가정
@@ -92,7 +92,7 @@ def compute_kau_breakeven(
         if kau_be > wta_hurdle / koc_ratio:
             warning = (
                 f"KAU breakeven {kau_be:,.0f}원 > WTA hurdle 환산값 "
-                f"{wta_hurdle/koc_ratio:,.0f}원 — 시나리오 비용에 비해 탄소 보상 부족"
+                f"{wta_hurdle / koc_ratio:,.0f}원 — 시나리오 비용에 비해 탄소 보상 부족"
             )
         elif kau_used - kau_be < 1000:
             warning = (

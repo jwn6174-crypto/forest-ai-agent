@@ -14,7 +14,6 @@ PNU: real 등록사업은 carbonregistry 공개 사업번호 (산39 외 2필지 
 
 from typing import Dict
 
-
 # ===========================================================
 # 1. 작은 sample polygon (산주 의사결정 시연용)
 # ===========================================================
@@ -175,7 +174,7 @@ def get_demo_parcel(parcel_id: str) -> Dict:
     return DEMO_PARCELS[parcel_id].copy()
 
 
-def list_demo_parcels(type_filter: str = None) -> list:
+def list_demo_parcels(type_filter: str | None = None) -> list:
     """parcel 목록.
     type_filter: None | "sample" | "real_registered"
     """
@@ -207,7 +206,9 @@ if __name__ == "__main__":
     for key in list_sample_parcels():
         p = DEMO_PARCELS[key]
         print(f"\n  {key}")
-        print(f"    {p['species_dominant']} {p['age_estimate']}년 SI={p['site_index']} {p['area_ha']}ha")
+        print(
+            f"    {p['species_dominant']} {p['age_estimate']}년 SI={p['site_index']} {p['area_ha']}ha"
+        )
         print(f"    좌표: lon={p['geom_centroid_lon']:.4f}, lat={p['geom_centroid_lat']:.4f}")
         print(f"    {p['_label']}")
 
