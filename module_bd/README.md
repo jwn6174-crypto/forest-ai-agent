@@ -6,9 +6,9 @@
 > **모듈 C (희도) 가 NPV 계산 시 호출하는 모든 데이터·함수의 집합지.**
 > 모듈 E (수범) 의 LLM 에이전트가 자연어 응답 시 호출하는 핵심 모듈.
 
-**최종 업데이트:** 2026-05-19 (Day 4 마감)
+**최종 업데이트:** 2026-05-24 (Day 5 마감)
 
-**Repo 상태:** 44 commits + 9 DECISIONS + 5/5 진짜 PDF 데이터 + RAG 281 청크 + 단위 테스트 45개
+**Repo 상태:** 47 commits + 10 DECISIONS + 5/5 진짜 PDF 데이터 + RAG 281 청크 + 단위 테스트 45개
 
 ---
 
@@ -124,8 +124,8 @@ pytest module_bd/tests/
 
 ```
 module_bd/
-├── README.md          ← (이 파일, v6)
-├── DECISIONS.md       ← 9 결정 학술 문서화
+├── README.md          ← (이 파일, v7)
+├── DECISIONS.md       ← 10 결정 학술 문서화
 ├── src/
 │   ├── growth_predict.py        # B 모듈 핵심 + carbon
 │   ├── yield_parse.py           # Ⅱ장 입목수간재적표 파싱
@@ -139,8 +139,9 @@ module_bd/
 │   ├── legal_api.py             # 법제처 API
 │   ├── legal_rotation.py        # 별표 3 룰베이스
 │   ├── carbon_offset_chunk.py   # RAG 코퍼스 chunking
-│   ├── mt_weather_api.py        # 산악기상 API ⭐ Day 4
-│   ├── mt_weather_collect.py    # 산악기상 수집 (429 대응) ⭐ Day 4
+│   ├── mt_weather_api.py        # 산악기상 API (Day 4)
+│   ├── mt_weather_collect.py    # 산악기상 수집 (429 대응, Day 4)
+│   ├── mt_weather_process.py    # 산악기상 전처리 — 일/월/연 csv ⭐ Day 5
 │   ├── forest_household_parse.py # 임가경제 파싱 ⭐ Day 4
 │   ├── diagnose/                # 일회성 진단 스크립트
 │   │   ├── frsas_probe.py       # 산림자원통계 API 진단 ⭐ Day 4
@@ -158,7 +159,7 @@ module_bd/
     │   ├── kau_daily/           # KAU 일별 CSV
     │   ├── kofpi_reports/       # KOFPI 분기별 PDF (4 분기)
     │   ├── law_extracts/        # 법령 캐시
-    │   ├── mt_weather/          # 산악기상 원본 (수집 중, 미커밋) ⭐ Day 4
+    │   ├── mt_weather/          # 산악기상 원본 (수집 완료, 6 관측소 jsonl) ⭐ Day 5
     │   ├── seedling/            # 산림청 묘목 단가 2025
     │   ├── standard_cost/       # 산림사업 표준품셈 PDF
     │   ├── wage/                # 대한건설협회 노임 2025
@@ -185,7 +186,7 @@ module_bd/
 | 임분수확표 (Ⅶ장) | 산림청 임분수확표 2014 | 11 수종 × SI × 임령 |
 | 입목수간재적표 (Ⅱ장) | 산림청 임분수확표 2014 | 16,163 행 |
 | 탄소흡수량 (수종·임령별) | 국립산림과학원 (3,212 표본 × 40년) | |
-| 산악기상 시계열 | 국립산림과학원 산악기상정보 | 보은 6 관측소, 수집 중 ⭐ Day 4 |
+| 산악기상 시계열 | 국립산림과학원 산악기상정보 | 보은 6 관측소, 수집·전처리 완료 ⭐ Day 5 |
 
 ### 모듈 D (시장)
 | 데이터 | 출처 | 비고 |
@@ -253,8 +254,9 @@ from shared.schemas import (
 | **D5** | carbon_uptake_rate — 국립산림과학원 통합 | 2026-05-15 |
 | **D6** | 묘목 단가 — 산림청 2025 공식 매핑 | 2026-05-15 |
 | **D7** | 산림탄소상쇄 RAG 코퍼스 — 11 PDF 281 청크 | 2026-05-15 |
-| **D8** | 산악기상 시계열 — 데이터 소스·수집 설계 (진행 중) | 2026-05-16 |
+| **D8** | 산악기상 시계열 — 데이터 소스·수집 설계 (Day 3-5, 완료) | 2026-05-16 ~ 2026-05-22 |
 | **D9** | 임가경제 데이터 — 임업 다각화 보조 수입 | 2026-05-19 |
+| **D10** | 산악기상 시계열 전처리 — 임지 단위 일/월/연 통계 | 2026-05-24 |
 
 → [DECISIONS.md](./DECISIONS.md) 전체 보기
 
@@ -273,11 +275,11 @@ from shared.schemas import (
 ✅ Pydantic 스키마 (shared/schemas.py)
 ✅ 탄소 흡수량 통합 (carbon_uptake_rate)
 ✅ 임가경제·임산물 (D9, 충북 5년치)
-🔄 산악기상 시계열 (가이드 §2.3) — 코드 완성, 수집 3/6 관측소
+✅ 산악기상 시계열 (가이드 §2.3, D8+D10) — 6 관측소 수집·전처리 완료
 ⏳ 등급분포 Weibull (NFI 활용) — 모듈 A 협업 필요
 ```
 
-→ **10/12 완성**. 산악기상 수집 진행 중, 등급분포 Weibull 은 NFI 대기.
+→ **11/12 완성**. 등급분포 Weibull 및 climate_correct 회귀는 NFI(모듈 A) 대기.
 핵심 책임 모두 완성.
 
 ---
@@ -305,11 +307,6 @@ from shared.schemas import (
 8. ✅ 산림탄소상쇄 RAG 코퍼스 (11 PDF → 281 청크)
 9. ✅ 단위 테스트 45개 (가이드 §9.1)
 10. ✅ 임가경제 데이터 (충북 5년치, D9)
-
-### 진행 중 🔄
-- **산악기상 시계열** (D8) — 코드 완성, 6 관측소 중 3 수집 완료.
-  나머지(시루산·삼승산·노성산)는 일일 호출 한도로 3~4일 더 소요.
-  수집 완료 후 일평균·연통계 산출 → climate_scenario 보정.
 
 ### Day 5+ 우선순위
 1. **등급분포 Weibull** — NFI 실측 필요, 모듈 A 협업 시점에

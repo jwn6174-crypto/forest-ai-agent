@@ -68,12 +68,13 @@
 - ✅ 국립산림과학원 탄소흡수량 (3,212 표본)
 - ✅ 산림청 2025 묘목 단가 (15 수종)
 - ✅ 산림탄소상쇄 RAG (11 PDF, 281 청크)
-- 🔄 산악기상 시계열 — 코드 완성, 보은 6 관측소 중 2개 수집 완료 (Day 4 진행 중)
+- ✅ 산악기상 시계열 — 보은 6 관측소 수집·전처리 완료 (D8 + D10, Day 5)
 
 ### 학술 결정 (DECISIONS.md, 8 항목)
 - D1-D4: KOFPI · 표준품셈 · cost_function · schemas (Day 2)
 - D5-D7: carbon_uptake · seedling · RAG corpus (Day 3)
-- D8: 산악기상 데이터 소스·수집 설계 (Day 4, 진행 중)
+- D8: 산악기상 데이터 소스·수집 설계 (Day 3-5, 완료)
+- D10: 산악기상 시계열 전처리 — 임지 단위 일/월/연 통계 (Day 5)
 
 ---
 
@@ -99,7 +100,7 @@ python module_bd/src/carbon_offset_chunk.py    # RAG 청크
 # 5. 단위 테스트 실행
 pytest module_bd/tests/
 
-# 6. 산악기상 수집 (Day 4 진행 중 — 일일 호출 한도로 며칠에 나눠 수집)
+# 6. 산악기상 수집·전처리 (Day 3-5 완료)
 python module_bd/src/mt_weather_collect.py
 ```
 

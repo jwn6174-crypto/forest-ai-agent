@@ -88,6 +88,15 @@ desktop.ini
 # RAG 청크 JSONL (Day 3)
 !module_bd/data/interim/carbon_chunks.jsonl
 
+# 산악기상 시계열 (보은 6 관측소, Day 3-5)
+!module_bd/data/raw/mt_weather/
+!module_bd/data/raw/mt_weather/*.jsonl
+# 임가경제 (충북 5년치, Day 4)
+!module_bd/data/raw/forest_household_economy/
+!module_bd/data/raw/forest_household_economy/*.xlsx
+# CSV 산출물 허용 (산악기상 일/월/연)
+!module_bd/data/processed/*.csv
+
 # 로컬 다운로드 폴더
 downloads/
 data/raw/
