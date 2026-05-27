@@ -88,6 +88,16 @@ desktop.ini
 # RAG 청크 JSONL (Day 3)
 !module_bd/data/interim/carbon_chunks.jsonl
 
+# ===== NFI raw 데이터 (절대 git 금지) =====
+# 산림청 산림빅데이터팀 학술 제공 자료.
+# 표본점 좌표·소유 정보 포함 = 민감 데이터.
+# GitHub 공개 = 산림청 제공 조건 위반. 절대 push 안 됨.
+module_bd/data/raw/nfi/
+module_bd/data/raw/nfi/**
+mdb_NFI_*.xlsx
+mdb_NFI_*.mdb
+*_NFI_*.xlsx
+
 # 산악기상 시계열 (보은 6 관측소, Day 3-5)
 !module_bd/data/raw/mt_weather/
 !module_bd/data/raw/mt_weather/*.jsonl
