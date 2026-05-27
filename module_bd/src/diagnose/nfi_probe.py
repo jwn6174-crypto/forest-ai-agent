@@ -1,225 +1,255 @@
 """
-nfi_probe.py — NFI 7차 보은 표본점 추출 진단.
+nfi_probe.py — NFI 7차 보은·충북 깊은 진단 (v4, 추출본 csv 기반).
 
 목적:
-  · NFI 7차 임분조사표 + 임목조사표에서 보은 데이터 추출·진단
-  · climate_correct·Weibull 분석에 *충분한 데이터인가* 확인
+  · nfi_extract.py 가 만든 stand.csv + tree.csv 로 빠른 진단
+  · climate_correct·Weibull 설계 직접 입력 정보 산출
+  · D13·D14 결정 전 *분포·매핑* 확인
 
-데이터 출처: 국립산림과학원 NFI 7차 (2016~2020 조사)
-보안: raw xlsx 는 git 차단. 추출본 csv 만 추후 git 가능.
+진단 5가지:
+  1. 보은 수종 매핑 — 우리 가이드 11 수종 vs NFI 실측
+  2. 영급 × 임상 cross-tab — Weibull 그룹 후보
+  3. 수고 단위 변환 검증 — 평균 13.58m 매칭 (D11 결정 2)
+  4. 형질급 분포 — Weibull fit 시 *형질급 1·2* 만 사용 권장 여부
+  5. 표본점당 본수 분포 — 표본점별 vs 그룹별 fit 가능성
 
-진단 결과 (2026-05-27):
-  · 임분조사표: 전국 16,617개 / 충북 1,162개 / 보은 102개
-  · 가이드 §3.4 추정 27~30개의 3.6배. 통계 신뢰성 강화.
-  · 해발고 96~678m, 산악기상 관측소(242~627m) 와 매칭 가능.
+데이터:
+  module_bd/data/raw/nfi/nfi7_chungbuk_stand.csv  (1162행)
+  module_bd/data/raw/nfi/nfi7_chungbuk_tree.csv   (46,722행)
+
+실행 시간: 약 0.5초 (csv 0.1초 로딩 × 2)
 """
-from openpyxl import load_workbook
 from pathlib import Path
-from collections import Counter
+import csv
+from collections import Counter, defaultdict
 
 ROOT = Path(__file__).resolve().parents[3]
-NFI_PATH = ROOT / "module_bd" / "data" / "raw" / "nfi" / "mdb_NFI_7_수정.xlsx"
+NFI_DIR = ROOT / "module_bd" / "data" / "raw" / "nfi"
+STAND_CSV = NFI_DIR / "nfi7_chungbuk_stand.csv"
+TREE_CSV = NFI_DIR / "nfi7_chungbuk_tree.csv"
 
 
-def safe_numeric(values):
-    """str·int 섞인 리스트 → float 만 추출."""
-    out = []
-    for v in values:
-        try:
-            out.append(float(v))
-        except (ValueError, TypeError):
-            pass
-    return out
+# 가이드 11 수종 (가이드 §8.2, growth_predict 지원)
+GUIDE_11_SPECIES = [
+    "강원지방소나무", "중부지방소나무", "잣나무", "낙엽송",
+    "리기다소나무", "곰솔", "편백",
+    "신갈나무", "굴참나무", "상수리나무", "이태리포플러",
+]
+
+# NFI → 가이드 매핑 (D11 결정 6 보강)
+NFI_TO_GUIDE = {
+    "소나무": ["강원지방소나무", "중부지방소나무"],  # 지방형 구분 별도
+    "잣나무": ["잣나무"],
+    "리기다소나무": ["리기다소나무"],
+    "일본잎갈나무": ["낙엽송"],
+    "곰솔": ["곰솔"],
+    "편백": ["편백"],
+    "신갈나무": ["신갈나무"],
+    "굴참나무": ["굴참나무"],
+    "상수리나무": ["상수리나무"],
+    # 이태리포플러는 NFI 명칭이 다를 수 있음
+}
 
 
-def find_chungbuk_boeun(ws):
-    """충북 + 보은 표본점 추출 (임분조사표)."""
-    header = next(ws.iter_rows(max_row=1, values_only=True))
-    col_idx = {col: i for i, col in enumerate(header)}
-
-    needed_cols = ['집락번호', '표본점번호', '광역시도', '시군구', '읍면동',
-                   '좌표N', '좌표E', '해발고', '경사', '임상', '영급', '경급',
-                   '소유', '임종']
-    missing = [c for c in needed_cols if c not in col_idx]
-    if missing:
-        print(f"  ⚠ 헤더에 없는 칼럼: {missing}")
-
-    chungbuk_plots = []
-    boeun_plots = []
-    total = 0
-
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        total += 1
-        sido = row[col_idx['광역시도']]
-        if sido != '충청북도':
-            continue
-
-        plot = {c: row[col_idx[c]] for c in needed_cols if c in col_idx}
-        chungbuk_plots.append(plot)
-        if plot.get('시군구') == '보은군':
-            boeun_plots.append(plot)
-
-    return chungbuk_plots, boeun_plots, total
+def safe_float(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
-def summarize_plots(plots, label):
-    """추출 표본점 요약 (시군 분포)."""
-    print(f"\n[{label}] {len(plots)}개 표본점")
-    if not plots:
-        return
-    sigungu_counts = Counter(p.get('시군구') for p in plots)
-    print(f"  시군구 분포 ({len(sigungu_counts)}개 시군):")
-    for sg, n in sigungu_counts.most_common():
-        print(f"    {sg}: {n}개")
+def load_csv(path):
+    """csv 로딩 (utf-8-sig 으로 BOM 처리)."""
+    if not path.exists():
+        print(f"⚠ 파일 없음: {path}")
+        return []
+    with open(path, encoding='utf-8-sig') as f:
+        return list(csv.DictReader(f))
 
 
-def summarize_boeun_detail(plots):
-    """보은 표본점 상세 분포."""
-    if not plots:
-        print("  ⚠ 보은 표본점 0개")
-        return
-
-    print(f"\n[보은군 표본점 분포]")
-    for label, key in [('임상', '임상'), ('영급', '영급'), ('읍면동', '읍면동')]:
-        counts = Counter(p.get(key) for p in plots)
-        print(f"  {label}별 ({len(counts)}개):")
-        for k, n in counts.most_common():
-            print(f"    {k or '(결측)'}: {n}개")
-
-    elevs = safe_numeric([p.get('해발고') for p in plots
-                          if p.get('해발고') is not None])
-    if elevs:
-        print(f"  해발고: {min(elevs):.0f} ~ {max(elevs):.0f}m "
-              f"(평균 {sum(elevs)/len(elevs):.0f}m, 유효 {len(elevs)}/{len(plots)})")
-
-    slopes = safe_numeric([p.get('경사') for p in plots
-                           if p.get('경사') is not None])
-    if slopes:
-        print(f"  경사: {min(slopes):.0f} ~ {max(slopes):.0f}° "
-              f"(평균 {sum(slopes)/len(slopes):.0f}°)")
+def filter_boeun(rows, key='시군구'):
+    """보은 표본점만 추출."""
+    return [r for r in rows if r.get(key) == '보은군']
 
 
-def find_boeun_trees(wb, boeun_plot_ids):
-    """임목조사표에서 보은 표본점의 개별 나무 추출.
+def diag1_species_mapping(trees):
+    """진단 1: 보은 수종 매핑 (NFI 실측 → 우리 11 수종)."""
+    print("=" * 60)
+    print("[진단 1] 보은 수종 매핑 — 가이드 11 수종 vs NFI 실측")
+    print("=" * 60)
 
-    Args:
-        wb: 워크북
-        boeun_plot_ids: 보은 표본점번호 set
-    """
-    print(f"\n임목조사표 시트 로드 중...")
-    ws = wb["임목조사표"]
-    header = next(ws.iter_rows(max_row=1, values_only=True))
-    col_idx = {col: i for i, col in enumerate(header)}
-
-    needed = ['집락번호', '표본점번호', '학명번호', '수종명', '교목구분',
-              '침활구분', '흉고직경', '수고', '수령', '추정간재적',
-              '형질급', '수관급']
-
-    trees = []
-    total = 0
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        total += 1
-        plot_id = row[col_idx['표본점번호']]
-        if plot_id not in boeun_plot_ids:
-            continue
-        tree = {c: row[col_idx[c]] for c in needed if c in col_idx}
-        trees.append(tree)
-
-    print(f"  전국 개별 나무: {total:,}그루")
-    print(f"  보은 개별 나무: {len(trees)}그루")
-    return trees
-
-
-def summarize_boeun_trees(trees):
-    """보은 개별 나무 분포 — Weibull fit input 확인."""
-    if not trees:
-        print("  ⚠ 보은 나무 0그루")
-        return
-
-    print(f"\n[보은 개별 나무 분포 — Weibull fit input]")
-
-    # 수종 분포 (상위 15개)
     species_counts = Counter(t.get('수종명') for t in trees)
-    print(f"  수종별 ({len(species_counts)}종, 상위 15개):")
-    for sp, n in species_counts.most_common(15):
-        print(f"    {sp or '(결측)'}: {n}그루")
+    print(f"\nNFI 수종 종류: {len(species_counts)}개")
 
-    # 침활구분
-    chimhwal_counts = Counter(t.get('침활구분') for t in trees)
-    print(f"  침활구분:")
-    for k, n in chimhwal_counts.most_common():
-        print(f"    {k or '(결측)'}: {n}그루")
+    print(f"\n우리 11 수종 매칭:")
+    mapped_total = 0
+    for nfi_name, guide_names in NFI_TO_GUIDE.items():
+        n = species_counts.get(nfi_name, 0)
+        if n > 0:
+            mapped_total += n
+            guide_str = " / ".join(guide_names)
+            print(f"  NFI '{nfi_name}' → 가이드 '{guide_str}': {n}그루")
 
-    # DBH 분포 (Weibull fit 의 input)
-    dbh = safe_numeric([t.get('흉고직경') for t in trees
-                        if t.get('흉고직경') is not None])
-    if dbh:
-        print(f"  흉고직경(DBH): {min(dbh):.1f} ~ {max(dbh):.1f}cm "
-              f"(평균 {sum(dbh)/len(dbh):.1f}cm, 유효 {len(dbh)}/{len(trees)})")
-        # 등급 분포 — 가이드 §2.4 등급 기준 (소경·중경·대경)
-        small = sum(1 for d in dbh if d < 18)
-        medium = sum(1 for d in dbh if 18 <= d < 30)
-        large = sum(1 for d in dbh if d >= 30)
-        print(f"    소경(<18cm):   {small}그루 ({small/len(dbh)*100:.0f}%)")
-        print(f"    중경(18-30cm): {medium}그루 ({medium/len(dbh)*100:.0f}%)")
-        print(f"    대경(≥30cm):   {large}그루 ({large/len(dbh)*100:.0f}%)")
+    coverage = mapped_total / len(trees) * 100 if trees else 0
+    print(f"\n매칭 비율: {mapped_total}/{len(trees)} = {coverage:.1f}%")
 
-    # 수고
-    height = safe_numeric([t.get('수고') for t in trees
-                           if t.get('수고') is not None])
-    if height:
-        print(f"  수고: {min(height):.1f} ~ {max(height):.1f}m "
-              f"(평균 {sum(height)/len(height):.1f}m, 유효 {len(height)}/{len(trees)})")
+    print(f"\n매칭 안 된 상위 수종 (회귀 fallback 대상):")
+    unmapped = [(s, n) for s, n in species_counts.most_common(20)
+                if s not in NFI_TO_GUIDE]
+    for s, n in unmapped[:10]:
+        print(f"  {s}: {n}그루")
 
-    # 수령
-    age = safe_numeric([t.get('수령') for t in trees
-                        if t.get('수령') is not None])
-    if age:
-        print(f"  수령: {min(age):.0f} ~ {max(age):.0f}년 "
-              f"(평균 {sum(age)/len(age):.0f}년, 유효 {len(age)}/{len(trees)})")
 
-    # 추정간재적
-    vol = safe_numeric([t.get('추정간재적') for t in trees
-                        if t.get('추정간재적') is not None])
-    if vol:
-        print(f"  추정간재적: {min(vol):.3f} ~ {max(vol):.3f}m³ "
-              f"(평균 {sum(vol)/len(vol):.3f}m³, 유효 {len(vol)}/{len(trees)})")
+def diag2_age_imsang_crosstab(stands):
+    """진단 2: 영급 × 임상 cross-tab (Weibull 그룹 후보)."""
+    print("\n" + "=" * 60)
+    print("[진단 2] 보은 영급 × 임상 cross-tab — Weibull 그룹")
+    print("=" * 60)
+
+    ct = defaultdict(lambda: defaultdict(int))
+    for s in stands:
+        ag = s.get('영급') or '(결측)'
+        im = s.get('임상') or '(결측)'
+        ct[ag][im] += 1
+
+    # 헤더
+    imsangs = sorted({im for ags in ct.values() for im in ags})
+    print(f"\n           {''.join(im[:10].ljust(12) for im in imsangs)}")
+    for ag in sorted(ct.keys()):
+        row = ag.ljust(10)
+        for im in imsangs:
+            n = ct[ag].get(im, 0)
+            row += str(n).rjust(11) + ' '
+        print(f"  {row}")
+
+    # 핵심 그룹 (4·5영급 × 임상)
+    print(f"\n핵심 그룹 (4-5영급, 31-50년):")
+    for ag in ['4영급', '5영급']:
+        for im, n in ct[ag].items():
+            if n >= 5:
+                print(f"  {ag} × {im}: {n}개 표본점 (Weibull fit 가능)")
+
+
+def diag3_height_unit_check(trees):
+    """진단 3: 수고 단위 변환 검증 (D11 결정 2)."""
+    print("\n" + "=" * 60)
+    print("[진단 3] 수고 단위 변환 검증 — D11 결정 2 (cm ÷100 = m)")
+    print("=" * 60)
+
+    heights = [safe_float(t.get('수고_m')) for t in trees]
+    valid = [h for h in heights if h is not None]
+    invalid = len(heights) - len(valid)
+
+    if not valid:
+        print("  ⚠ 유효 수고 0건")
+        return
+
+    print(f"\n  유효 측정: {len(valid)}/{len(trees)} ({len(valid)/len(trees)*100:.1f}%)")
+    print(f"  결측: {invalid}그루")
+    print(f"  범위: {min(valid):.1f} ~ {max(valid):.1f}m")
+    print(f"  평균: {sum(valid)/len(valid):.2f}m")
+    print(f"\n  D11 결정 2 검증:")
+    print(f"    한국 임분 평균 수고 12-16m 범위")
+    avg = sum(valid)/len(valid)
+    if 10 <= avg <= 18:
+        print(f"    실측 평균 {avg:.2f}m → 정상 범위 ✓ (cm ÷100 = m 적용)")
+    else:
+        print(f"    실측 평균 {avg:.2f}m → 범위 밖. 단위 재검토 필요")
+
+
+def diag4_formjeol_distribution(trees):
+    """진단 4: 형질급 분포 (Weibull fit 시 양품만 사용 권장 여부)."""
+    print("\n" + "=" * 60)
+    print("[진단 4] 보은 형질급 분포 — Weibull fit 대상 결정")
+    print("=" * 60)
+
+    counts = Counter(t.get('형질급') for t in trees)
+    total = sum(counts.values())
+    print(f"\n  형질급 분포 ({total}그루):")
+    for fg in ['1급목', '2급목', '3급목']:
+        n = counts.get(fg, 0)
+        pct = n / total * 100 if total else 0
+        print(f"    {fg}: {n}그루 ({pct:.1f}%)")
+    other = total - sum(counts.get(fg, 0) for fg in ['1급목', '2급목', '3급목'])
+    if other > 0:
+        print(f"    기타/결측: {other}그루")
+
+    print(f"\n  의사결정:")
+    n1 = counts.get('1급목', 0)
+    n2 = counts.get('2급목', 0)
+    print(f"    옵션 A: 1·2급목만 Weibull fit → {n1+n2}그루 ({(n1+n2)/total*100:.1f}%)")
+    print(f"    옵션 B: 전체 형질급 fit → {total}그루")
+    print(f"    옵션 C: 형질급 별도 fit (1급·2급·3급 각각)")
+
+
+def diag5_trees_per_plot(stands, trees):
+    """진단 5: 표본점당 본수 분포."""
+    print("\n" + "=" * 60)
+    print("[진단 5] 보은 표본점당 본수 분포")
+    print("=" * 60)
+
+    plot_counts = Counter(t.get('표본점번호') for t in trees)
+
+    counts = list(plot_counts.values())
+    if not counts:
+        print("  ⚠ 표본점 매칭 0건")
+        return
+
+    counts.sort()
+    avg = sum(counts) / len(counts)
+    median = counts[len(counts) // 2]
+
+    print(f"\n  본수 통계 ({len(counts)} 표본점):")
+    print(f"    최소: {min(counts)}그루")
+    print(f"    최대: {max(counts)}그루")
+    print(f"    평균: {avg:.1f}그루")
+    print(f"    중앙값: {median}그루")
+
+    # 분포 빈도
+    bins = [(1, 10), (11, 20), (21, 30), (31, 50), (51, 80), (81, 200)]
+    print(f"\n  본수 구간 분포:")
+    for lo, hi in bins:
+        n = sum(1 for c in counts if lo <= c <= hi)
+        bar = '█' * (n // 2)
+        print(f"    {lo:>3}-{hi:<3}: {n:>3} 표본점 {bar}")
+
+    # 표본점별 fit 가능성
+    fittable = sum(1 for c in counts if c >= 20)
+    print(f"\n  표본점별 Weibull fit 가능 (≥20그루): {fittable}/{len(counts)} 표본점")
+    if fittable >= 50:
+        print(f"  → 표본점별 fit 도 가능. 단, 그룹 fit 이 통계적 강건성 높음.")
+    else:
+        print(f"  → 표본점별 fit 비추천. *그룹 fit (수종·영급)* 권장.")
 
 
 def main():
     print("=" * 60)
-    print("NFI 7차 — 충북·보은 표본점·나무 진단")
+    print("NFI 7차 보은 깊은 진단 (v4, csv 기반)")
     print("=" * 60)
 
-    if not NFI_PATH.exists():
-        print(f"⚠ 파일 없음: {NFI_PATH}")
-        return
+    # 빠른 로딩
+    print(f"\nCSV 로딩 (0.1초씩)...")
+    stands = load_csv(STAND_CSV)
+    trees = load_csv(TREE_CSV)
+    print(f"  stand: {len(stands)}행")
+    print(f"  tree: {len(trees)}행")
 
-    # 임분조사표 (표본점 단위)
-    print(f"파일 로드 중: {NFI_PATH.name} (124MB, 1~2분 소요)")
-    wb = load_workbook(NFI_PATH, read_only=True)
-    ws_imbun = wb["임분조사표"]
-    chungbuk, boeun, total = find_chungbuk_boeun(ws_imbun)
+    # 보은만
+    boeun_stands = filter_boeun(stands)
+    boeun_ids = {s['표본점번호'] for s in boeun_stands}
+    boeun_trees = [t for t in trees if t.get('표본점번호') in boeun_ids]
+    print(f"  보은 표본점: {len(boeun_stands)}개")
+    print(f"  보은 나무: {len(boeun_trees)}그루")
 
-    print(f"\n전국 표본점 (조사 가능 전체): {total:,}개")
-    summarize_plots(chungbuk, "충청북도")
-    summarize_plots(boeun, "보은군")
-    summarize_boeun_detail(boeun)
+    # 5가지 진단
+    diag1_species_mapping(boeun_trees)
+    diag2_age_imsang_crosstab(boeun_stands)
+    diag3_height_unit_check(boeun_trees)
+    diag4_formjeol_distribution(boeun_trees)
+    diag5_trees_per_plot(boeun_stands, boeun_trees)
 
-    # 보은 표본점 ID set 만들기
-    boeun_ids = {p['표본점번호'] for p in boeun}
-
-    # 임목조사표 (개별 나무 단위)
-    trees = find_boeun_trees(wb, boeun_ids)
-    summarize_boeun_trees(trees)
-
-    # 가이드 비교
     print(f"\n{'=' * 60}")
-    print(f"가이드 §3.4 vs 실측:")
-    print(f"  보은 표본점: 추정 27~30 → 실측 {len(boeun)}개 (3.6배)")
-    print(f"  보은 개별 나무: {len(trees)}그루")
-    if len(trees) >= 1000:
-        print(f"  → Weibull fit *수종·영급별 sub-fit* 충분히 가능.")
+    print(f"v4 진단 끝. D13·D14 설계 결정 입력 확보.")
     print(f"{'=' * 60}")
 
 
