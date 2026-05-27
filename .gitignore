@@ -135,3 +135,12 @@ debug_yield_191.txt
 build/
 dist/
 *.egg-info/
+
+# ===== Day 6 climate_correct 자산 =====
+# ASOS 일자료 (5 시군, 1991-2020 평년, ~62MB)
+# data.go.kr API 호출 결과 — 재현 가능하나 학술 자산
+!module_bd/data/raw/asos/
+!module_bd/data/raw/asos/*.jsonl
+
+# climate_correct 모델 자산 (R² +0.204 best)
+!module_bd/data/processed/climate_correct.pkl
