@@ -6,9 +6,9 @@
 > **모듈 C (희도) 가 NPV 계산 시 호출하는 모든 데이터·함수의 집합지.**
 > 모듈 E (수범) 의 LLM 에이전트가 자연어 응답 시 호출하는 핵심 모듈.
 
-**최종 업데이트:** 2026-05-27 (Day 6 진행 중)
+**최종 업데이트:** 2026-05-27 (Day 6 완료 — climate_correct v5 R 0.204)
 
-**Repo 상태:** 66 commits + 13 DECISIONS + 5/5 진짜 PDF 데이터 + RAG 281 청크 + 단위 테스트 45개
+**Repo 상태:** 71+ commits + 13 DECISIONS (D13 사후 보강) + 5/5 진단 PDF 데이터 + RAG 281 청크 + 단위 테스트 45개 + ASOS 5 시군 30년 평년 (55MB)
 
 ---
 
@@ -99,6 +99,30 @@ price_data = fetch_kau_price(date_iso="2025-12-31")
 laws = search_law(query="기준벌기령")
 ```
 
+### 8. `climate_correct()` — 기후 보정 회귀 (Day 6 완료) ⭐
+
+```python
+import joblib
+import pandas as pd
+
+# best 모델 로드 (NFI 6+7차 시계열 패널 학습, R² +0.204)
+saved = joblib.load("module_bd/data/processed/climate_correct.pkl")
+model = saved['model']
+features = saved['features']
+
+# 보정값 예측 (잔차 = V_actual - V_table)
+input_data = pd.DataFrame([{
+    'temp_anomaly_30y': 0.7,    # 30년 평년 대비 기온 anomaly (°C)
+    'prcp_anomaly_30y': 60,     # 강수 anomaly (mm/year)
+    'gdd_anomaly': 200,         # GDD 누적 anomaly (°C·day)
+    'vpd_anomaly': 0.2,         # VPD 최대 anomaly (kPa)
+    'elev': 350,                # 표본점 해발고 (m)
+    'imsang_code': 1,           # 임상 (0=침엽수, 1=활엽수, 2=혼효림)
+}])
+predicted_residual = model.predict(input_data)[0]  # m³/ha
+# 보정된 임목축적 = V_table + predicted_residual
+```
+
 ---
 
 ## ✅ 단위 테스트 (가이드 §9.1)
@@ -124,8 +148,8 @@ pytest module_bd/tests/
 
 ```
 module_bd/
-├── README.md          ← (이 파일, v10)
-├── DECISIONS.md       ← 13 결정 학술 문서화
+├── README.md          ← (이 파일, v11)
+├── DECISIONS.md       ← 13 결정 학술 문서화 (D13 사후 보강)
 ├── src/
 │   ├── growth_predict.py        # B 모듈 핵심 + carbon
 │   ├── yield_parse.py           # Ⅱ장 입목수간재적표 파싱
@@ -141,25 +165,45 @@ module_bd/
 │   ├── carbon_offset_chunk.py   # RAG 코퍼스 chunking
 │   ├── mt_weather_api.py        # 산악기상 API (Day 4)
 │   ├── mt_weather_collect.py    # 산악기상 수집 (429 대응, Day 4)
-│   ├── mt_weather_process.py    # 산악기상 전처리 — 일/월/연 csv ⭐ Day 5
-│   ├── forest_household_parse.py # 임가경제 파싱 ⭐ Day 4
+│   ├── mt_weather_process.py    # 산악기상 전처리 — 일/월/연 csv (Day 5)
+│   ├── forest_household_parse.py # 임가경제 파싱 (Day 4)
+│   ├── asos_collect.py          # ASOS 보은 수집 (Day 6) ⭐
+│   ├── asos_chungbuk_collect.py # ASOS 4 시군 수집 (Day 6) ⭐
+│   ├── climate_correct/         # climate_correct 본 구현 폴더 ⭐ Day 6
+│   │   ├── asos_features.py     # 보은 평년 + anomaly + VPD
+│   │   ├── asos_chungbuk_features.py # 5 시군 평년 + anomaly 비교
+│   │   ├── climate_features_panel.py # 시기별 + 시군별 anomaly 패널
+│   │   └── fit_correct.py       # LightGBM 회귀 (v5 best, R² 0.204)
 │   ├── diagnose/                # 일회성 진단 스크립트
-│   │   ├── frsas_probe.py       # 산림자원통계 API 진단 ⭐ Day 4
-│   │   └── kosis_probe.py       # KOSIS 진단
+│   │   ├── frsas_probe.py       # 산림자원통계 API 진단 (Day 4)
+│   │   ├── kosis_probe.py       # KOSIS 진단
+│   │   ├── asos_probe.py        # ASOS API 진단 (Day 6) ⭐
+│   │   ├── asos_chungbuk_probe.py # 충북 ASOS 진단 (Day 6) ⭐
+│   │   ├── nfi6_extract.py      # NFI 6차 충북 추출 (Day 6) ⭐
+│   │   └── nfi_5_6_7_probe.py   # NFI 3차수 구조 비교 (Day 6) ⭐
 │   └── standard_cost_diagnose{1-4}.py  # 표준품셈 진단 학습 기록
-├── tests/             ← 단위 테스트 45개 ⭐ Day 4
+├── tests/             ← 단위 테스트 45개 (Day 4)
 └── data/
     ├── raw/
     │   ├── carbon/              # 국립산림과학원 탄소흡수량
     │   │   └── carbon_uptake_2003.json
     │   ├── carbon_offset/       # 산림청 산림탄소상쇄 PDF 21개
-    │   ├── forest_household_economy/  # 임가경제조사 엑셀 ⭐ Day 4
-    │   │   ├── 임업손익계산서_충청북도_2020-2024.xlsx
-    │   │   └── 주요지표_월별지표_2020-2024.xlsx
+    │   ├── forest_household_economy/  # 임가경제조사 엑셀 (Day 4)
     │   ├── kau_daily/           # KAU 일별 CSV
     │   ├── kofpi_reports/       # KOFPI 분기별 PDF (4 분기)
     │   ├── law_extracts/        # 법령 캐시
-    │   ├── mt_weather/          # 산악기상 원본 (수집 완료, 6 관측소 jsonl) ⭐ Day 5
+    │   ├── mt_weather/          # 산악기상 원본 (6 관측소 jsonl, Day 5)
+    │   ├── asos/                # ASOS 5 시군 일자료 (~55MB, Day 6) ⭐
+    │   │   ├── asos_226_1991_2020.jsonl  # 보은
+    │   │   ├── asos_131_1991_2020.jsonl  # 청주
+    │   │   ├── asos_127_1991_2020.jsonl  # 충주
+    │   │   ├── asos_221_1991_2020.jsonl  # 제천
+    │   │   └── asos_135_1991_2020.jsonl  # 추풍령
+    │   ├── nfi/                 # NFI raw xlsx (gitignore, 5/6/7차)
+    │   │   ├── nfi6_chungbuk_stand.csv   # 6차 충북 추출 (Day 6) ⭐
+    │   │   ├── nfi6_chungbuk_tree.csv
+    │   │   ├── nfi7_chungbuk_stand.csv   # 7차 충북 추출 (Day 6)
+    │   │   └── nfi7_chungbuk_tree.csv
     │   ├── seedling/            # 산림청 묘목 단가 2025
     │   ├── standard_cost/       # 산림사업 표준품셈 PDF
     │   ├── wage/                # 대한건설협회 노임 2025
@@ -173,7 +217,12 @@ module_bd/
     │   └── carbon_chunks.jsonl          # RAG 281 청크
     └── processed/
         ├── rotation_age.json    # 별표 3 룰베이스
-        └── forest_household_economy.json  # 임가경제 5년치 ⭐ Day 4
+        ├── forest_household_economy.json  # 임가경제 5년치 (Day 4)
+        ├── mt_weather_daily.csv          # 산악기상 일/월/연 csv (Day 5)
+        ├── mt_weather_monthly.csv
+        ├── mt_weather_annual.csv
+        ├── asos_anomaly_panel.csv        # 시기별+시군별 anomaly 패널 (Day 6) ⭐
+        └── climate_correct.pkl           # v5 best 모델 (Day 6) ⭐
 ```
 
 ---
@@ -187,6 +236,9 @@ module_bd/
 | 입목수간재적표 (Ⅱ장) | 산림청 임분수확표 2014 | 16,163 행 |
 | 탄소흡수량 (수종·임령별) | 국립산림과학원 (3,212 표본 × 40년) | |
 | 산악기상 시계열 | 국립산림과학원 산악기상정보 | 보은 6 관측소, 수집·전처리 완료 ⭐ Day 5 |
+| **ASOS 30년 평년** | **기상청 ASOS API (data.go.kr)** | **5 시군 × 1991-2020, 54,790일** ⭐ Day 6 |
+| **climate_correct() v5** | **NFI 6+7차 + ASOS 시계열 패널 회귀** | **R² 0.204, 1,369 행 패널, best 모델** ⭐ Day 6 |
+| **NFI 6차 + 7차 충북** | **국가산림자원조사 (산림청 산림빅데이터팀)** | **2,016 표본점 (842 고정), 84,629 그루** ⭐ Day 6 |
 
 ### 모듈 D (시장)
 | 데이터 | 출처 | 비고 |
@@ -259,13 +311,13 @@ from shared.schemas import (
 | **D10** | 산악기상 시계열 전처리 — 임지 단위 일/월/연 통계 | 2026-05-24 |
 | **D11** | NFI 7차 데이터 — 단위·구조·지침서 동등성 검증 | 2026-05-27 |
 | **D12** | NFI 7차 추출본 csv 저장 + 보은 깊은 진단 | 2026-05-27 |
-| **D13** | climate_correct() 회귀 설계 — 8개 결정 + 한계 정직 기록 | 2026-05-27 |
+| **D13** | climate_correct() 회귀 설계 — 8개 결정 + 5 시도 진전 (v5 R² 0.204) | 2026-05-27 |
 
 → [DECISIONS.md](./DECISIONS.md) 전체 보기
 
 ---
 
-## 🎯 가이드 §1.2 책임 안 (11 항목)
+## 🎯 가이드 §1.2 책임 안 (12 항목)
 
 ```
 ✅ 임분수확표 PDF 파싱 → DB 적재
@@ -279,18 +331,18 @@ from shared.schemas import (
 ✅ 탄소 흡수량 통합 (carbon_uptake_rate)
 ✅ 임가경제·임산물 (D9, 충북 5년치)
 ✅ 산악기상 시계열 (가이드 §2.3, D8+D10) — 6 관측소 수집·전처리 완료
-⏳ 등급분포 Weibull (NFI 활용) — 모듈 A 협업 필요
+✅ climate_correct() (v5, R² 0.204, Day 6) — NFI 6+7차 + ASOS 5 시군 패널 ⭐
+⏳ 등급분포 Weibull (NFI 활용) — 다음 단계 (D14)
 ```
 
-→ **11/12 완성**. 등급분포 Weibull 및 climate_correct 회귀는 NFI(모듈 A) 대기.
-핵심 책임 모두 완성.
+→ **12/13 완성** (Weibull 대기). climate_correct v5 = NFI 자체 추출 + ASOS 30년 평년, R² 0.204.
 
 ---
 
 ## 🎯 가이드 §1.3 산출물 (Lead/팀에게 줄 것)
 
 ```
-✅ Lead (Module C) — GrowthForecast, MarketSnapshot, CostFunction, RotationRule
+✅ Lead (Module C) — GrowthForecast, MarketSnapshot, CostFunction, RotationRule, climate_correct.pkl
 ✅ Person 4 (Module E) — chunked PDF (carbon_chunks.jsonl)
 ⚠️ Person 2 (Module A) — NFI 표본점 (모듈 A 협업 필요, 추후)
 ```
@@ -311,11 +363,23 @@ from shared.schemas import (
 9. ✅ 단위 테스트 45개 (가이드 §9.1)
 10. ✅ 임가경제 데이터 (충북 5년치, D9)
 
-### Day 5+ 우선순위
-1. **등급분포 Weibull** — NFI 실측 필요, 모듈 A 협업 시점에
-2. **climate_correct() 회귀** — NFI 잔차 + 산악기상 시계열 결합
+### Day 5 완료 ✅
+- 산악기상 시계열 수집·전처리 (보은 6 관측소, D8+D10)
+
+### Day 6 완료 ✅
+- **NFI 7차 + 6차 충북 추출** (D11 + D12) — 2,016 표본점, 84,629 그루
+- **ASOS 5 시군 30년 평년 인프라** (data.go.kr API, 54,790 일)
+- **climate_correct() v5** (D13) — *R² 0.204* (best)
+  - 5 시도 정직한 진전: v1 -0.013 → v5 +0.204
+  - 사용자 통찰 결정적: 시기 미스매치 → ASOS 30y → 충북 확장 → NFI 시계열
+  - 변수 중요도: elev 51%, 기후 4 변수 합계 42%, imsang 6%
+
+### Day 7+ 우선순위
+1. **등급분포 Weibull (D14)** — NFI 7차 4,505 그루 데이터 풍부, 핵심 5 그룹 (영급×임상) fit
+2. **NFI 5차 통합** — 영문 코드 매핑 + Bessel 좌표 변환 (R² 추가 개선 시도)
 3. **모듈 A 위성 GEE 시작** — 큰 작업, 별도 세션 (민석 주도)
 4. **발표용 Figure** (가이드 §9.2)
+5. **growth_predict() 통합** — climate_correct.pkl 호출 (L460-464)
 
 ### 보완 (작은 추가)
 - 충북 보은 지역 특화 운반비 (KOFPI 전국 평균 → 지역)
@@ -383,8 +447,10 @@ pip install -r requirements.txt
 # - pandas, numpy, pyarrow
 # - pdfplumber (PDF 파싱), openpyxl (엑셀 파싱)
 # - pydantic (스키마)
-# - requests (KAU·산악기상 API)
+# - requests (KAU·산악기상·ASOS API)
 # - pytest (단위 테스트)
+# - lightgbm, scikit-learn, joblib, scipy (climate_correct, Day 6) ⭐
+# - pyproj (NFI 좌표 변환 EPSG:5181 → WGS84, Day 6) ⭐
 ```
 
 ---
