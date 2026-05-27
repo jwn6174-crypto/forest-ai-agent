@@ -8,7 +8,7 @@
 
 **최종 업데이트:** 2026-05-27 (Day 6 진행 중)
 
-**Repo 상태:** 64 commits + 12 DECISIONS + 5/5 진짜 PDF 데이터 + RAG 281 청크 + 단위 테스트 45개
+**Repo 상태:** 66 commits + 13 DECISIONS + 5/5 진짜 PDF 데이터 + RAG 281 청크 + 단위 테스트 45개
 
 ---
 
@@ -124,8 +124,8 @@ pytest module_bd/tests/
 
 ```
 module_bd/
-├── README.md          ← (이 파일, v9)
-├── DECISIONS.md       ← 12 결정 학술 문서화
+├── README.md          ← (이 파일, v10)
+├── DECISIONS.md       ← 13 결정 학술 문서화
 ├── src/
 │   ├── growth_predict.py        # B 모듈 핵심 + carbon
 │   ├── yield_parse.py           # Ⅱ장 입목수간재적표 파싱
@@ -259,6 +259,7 @@ from shared.schemas import (
 | **D10** | 산악기상 시계열 전처리 — 임지 단위 일/월/연 통계 | 2026-05-24 |
 | **D11** | NFI 7차 데이터 — 단위·구조·지침서 동등성 검증 | 2026-05-27 |
 | **D12** | NFI 7차 추출본 csv 저장 + 보은 깊은 진단 | 2026-05-27 |
+| **D13** | climate_correct() 회귀 설계 — 8개 결정 + 한계 정직 기록 | 2026-05-27 |
 
 → [DECISIONS.md](./DECISIONS.md) 전체 보기
 

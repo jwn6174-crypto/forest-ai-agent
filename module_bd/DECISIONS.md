@@ -956,4 +956,269 @@ D12 의 진단을 D13/D14 설계로 이어주는 핵심:
 - **D14**: 등급분포 Weibull fit 설계 (그룹 정의, 형질급 처리, 검증).
 
 ---
+
+## D13: climate_correct() 회귀 설계 결정 (Day 6, 진행)
+
+**일자**: 2026-05-27 (Day 6)
+**책임**: 정우 (모듈 B/D)
+**관련 가이드**: §2.3 임분수확표의 한계, §5.4 기후 보정 layer
+
+### 배경
+
+D11 (NFI 단위·구조) + D12 (csv 추출본·진단) 완료. 이제 가이드 §2.3·§5.4 의
+climate_correct() 회귀 본 구현 직전. *알고리즘·하이퍼파라미터·인터페이스* 는
+가이드 명시. 우리가 정해야 할 것은 *데이터 적용·결측 처리·검증* 의 8가지.
+
+### 가이드 명시 (그대로 준수)
+
+가이드 §5.4 L437-L453:
+```python
+from lightgbm import LGBMRegressor
+
+nfi["v_table"] = nfi.apply(lambda r: lookup_yield(...), axis=1)
+nfi["residual"] = nfi["volume_m3_per_ha"] - nfi["v_table"]
+
+clim_feats = ["temp_anomaly_30y", "prcp_anomaly_30y", "vpd_max", "gdd_cum"]
+clim_model = LGBMRegressor(n_estimators=200, max_depth=5, learning_rate=0.05)
+clim_model.fit(nfi[clim_feats], nfi["residual"])
+joblib.dump(clim_model, "data/processed/climate_correct.pkl")
+
+def climate_correct(v_table, species, scenario, future_age):
+    feats = load_scenario_features(scenario, future_age)
+    residual = clim_model.predict([feats])[0]
+    return v_table + residual
+```
+
+준수 사항:
+- 알고리즘: **LightGBM** (LGBMRegressor)
+- 하이퍼파라미터: **n_estimators=200, max_depth=5, learning_rate=0.05**
+- Target: **residual = V_actual - V_table** (m³/ha)
+- 출력: **data/processed/climate_correct.pkl**
+- 호출: `climate_correct(v_table, species, scenario, future_age)`
+
+---
+
+### 결정 1: SI (지위지수) 추정 방법
+
+**배경**: 가이드의 `lookup_yield(species, SI, age)` 는 SI 입력 필수. 그러나
+NFI 7차 임황조사표에 SI 컬럼 *없음*. 추정 방법 결정 필요.
+
+**옵션**:
+- A. 표본점별 평균 수고 + 영급 → 수고곡선 역산 → SI 추정
+- B. 표본점별 *우점수종 평균 수고* (NFI 표준목 수고 평균) → 수종별 표준 수고곡선 적용
+- C. 수종별 *기본 SI* (전국 평균) 사용. 단순화.
+
+**결정**: **옵션 B**.
+
+**근거**:
+- 표본점별 표준목 수고 평균 (보은 평균 13.58m) 측정값 활용.
+- 임분수확표 (산림과학원 2014) 의 수종별 수고곡선 자료 사용 가능.
+- 가이드 §3.2 lookup_volume 의 input 과 일관성.
+- 옵션 A 는 자체 수고곡선 fit 필요 (작업 ↑).
+- 옵션 C 는 표본점간 *기후 잔차* 추출 불가 (정의상 같은 V_table).
+
+**구현 메모**:
+- 영급 결측 13개 표본점 (D11 발견) → SI 추정 불가 → *해당 표본점 제외*.
+- 수고 결측 81% — 표본점별 *유효 수고 평균* 으로 계산. 표본점당 평균 5~10본
+  표준목 측정값 활용 (D11 결정 4).
+
+### 결정 2: 기후 변수 4개 source — 정직한 한계 기록
+
+가이드 §5.4 의 4개 변수 source:
+
+| 변수 | 가이드 정의 | 우리 source | 가능 여부 |
+|---|---|---|---|
+| `temp_anomaly_30y` | 30년 평년 대비 기온 anomaly | 산악기상 4년(2022-2025) + 외부 평년 | 부분 가능 |
+| `prcp_anomaly_30y` | 30년 평년 대비 강수 anomaly | **미수집** (D10 한계) | 불가능 |
+| `vpd_max` | 연 최대 VPD | **미수집** (D10 산악기상에 VPD 컬럼 없음) | 불가능 |
+| `gdd_cum` | 누적 GDD (생장일수) | 산악기상 일평균 기온 → 계산 | 가능 |
+
+**결정**: 1차 회귀 = **2개 변수** (`temp_anomaly_30y`, `gdd_cum`) 만 사용.
+2차 보강 = `prcp` 와 `vpd` 는 *NEX-GDDP-CMIP6* (GEE) 또는 *기상청 ASOS 평년값*
+으로 보완 (D15+ 별도 결정).
+
+**근거**:
+- 가이드 §10.3: "강수는 부차적, 기온이 주축."
+- 가이드 §10.3: "VPD 는 R² 5-10% 증가 — 있으면 좋지만 없어도 valid."
+- 우리 실측 데이터로 시작 → R² 보고 보강 결정.
+
+**정직한 한계**:
+- 4개 변수 중 2개만 사용 → R² 0.5-0.7 (가이드 추정) 대비 *0.4-0.6* 으로 낮을 수 있음.
+- 발표·논문에 *명시적 한계* 로 기록 — "1차 회귀는 2 변수, 보강 시 4 변수".
+
+**대안 — Plan B**:
+- 기상청 ASOS 보은·청주 평년값 (`30년 평년 1991-2020`) → 우리 산악기상과 차이.
+- 단, ASOS = 저지대, 산악기상 = 산지 → 직접 비교 어려움. *별도 보정* 필요.
+
+### 결정 3: 표본점 ↔ 산악기상 매칭 방법
+
+**배경**: NFI 표본점 102개 (보은) vs 산악기상 관측소 6개 (D8). 각 표본점에
+*어느 관측소* 의 기상 데이터를 매칭할지 결정.
+
+**옵션**:
+- A. 좌표 기반 최근접 (Euclidean distance)
+- B. 좌표 + 해발고 보정 (3D 가중)
+- C. 행정구역 기반 (보은군 = 보은 관측소 등)
+
+**결정**: **옵션 A** (좌표 기반 최근접) — 단순, 정직.
+
+**근거**:
+- 보은 면적 ~590km², 산악기상 6 관측소 분포 = 평균 한 관측소가 100km² 담당.
+  → 평균 매칭 거리 ~ 5-7km. *임지 단위 기후* 로 충분히 대표.
+- 옵션 B 는 *지형도 + lapse rate* 필요. 작업 ↑, 정확도 미세 개선.
+- 옵션 C 는 보은 = 6 관측소 모두 보은 → 의미 X.
+
+**구현**:
+- `scipy.spatial.cKDTree` 또는 `sklearn.neighbors.NearestNeighbors` 사용.
+- NFI 표본점 좌표 (EPSG:5179) ↔ 산악기상 관측소 좌표 (EPSG:4326) → 통일 필요.
+  → 산악기상을 EPSG:5179 (Korea 2000 / Central Belt) 로 변환.
+
+**해발고 고려 (부차)**:
+- 매칭 후 *해발고 차이* 를 회귀 input 에 추가 (`elev_diff` 변수).
+- 표본점 96-678m × 관측소 242-627m → 차이 -300m ~ +400m 가능.
+
+### 결정 4: V_actual 산출 방법
+
+**배경**: NFI 의 표본점별 *실측 임목축적* (m³/ha) 계산 방법 결정.
+
+**옵션**:
+- A. tree.csv 의 표본점별 *추정간재적* 합산 / 0.04ha (기본조사원 면적)
+- B. NFI 임분조사표의 *임목축적* 컬럼 직접 사용 (있다면)
+- C. tree.csv DBH 단면적 합산 + 형수법 (BA × HF × 평균수고)
+
+**결정**: **옵션 A** (추정간재적 합산).
+
+**근거**:
+- 추정간재적 = NFI 가 *수종·DBH·수고 기반* 으로 *이미 계산*한 개별 나무 재적.
+- 형수법·V_table 회귀식보다 NFI 의 *공식 계산값* 신뢰성 ↑.
+- 0.04ha 면적 보정으로 m³/ha 단위 통일.
+
+**구현**:
+```python
+plot_actual = tree_df.groupby('표본점번호').agg(
+    V_actual_m3_ha = ('추정간재적', lambda x: x.sum() / 0.04)
+)
+```
+
+**짚을 점 — 대경목조사원**:
+- NFI 부표본점 = 기본조사원(0.04ha, DBH 6-30cm) + 대경목조사원(0.08ha, DBH≥30cm)
+- DBH 30cm 이상은 *0.08ha* 면적 적용 — 분리 처리 필요.
+- 본 구현 시 코드 정확성 확인 필수.
+
+### 결정 5: 검증 방법
+
+**옵션**:
+- A. K-fold cross-validation (5-fold)
+- B. Train/test split (80/20)
+- C. 지역 hold-out (충북 일부 군 → test)
+- D. 시기 hold-out (5차/6차 → train, 7차 → test) — 5·6차 추출 필요
+
+**결정**: **옵션 A (5-fold CV)** + **옵션 B (hold-out 80/20)** 병행.
+
+**근거**:
+- 5-fold CV → R² 평균·표준편차 → 일반화 성능 평가.
+- Hold-out → 마지막 단일 평가 (논문 보고용).
+- 옵션 C 는 지역 일반화 검증 — *추후 보강* 단계 (D15+).
+- 옵션 D 는 시계열 변화 검증 — *추후 5·6차 추출 후* 가능.
+
+**구현**:
+```python
+from sklearn.model_selection import KFold
+from sklearn.metrics import r2_score, mean_squared_error
+
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+r2_scores = []
+for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+    model.fit(X.iloc[train_idx], y.iloc[train_idx])
+    pred = model.predict(X.iloc[val_idx])
+    r2_scores.append(r2_score(y.iloc[val_idx], pred))
+```
+
+### 결정 6: 결측 처리
+
+**문제 데이터**:
+- 영급 결측: 13 표본점 (D11 발견) → SI 추정 불가
+- 수고 결측: 81% (D11·D12 발견) → 표본점 평균 수고는 표준목 한정
+- 기후 결측: 산악기상 18일 1.1% (D10 발견)
+
+**결정**:
+- **영급 결측 표본점**: 분석에서 *완전 제외*. SI 추정 불가 → V_table 산출 불가.
+- **수고 결측**: 표본점별 *유효 수고 평균* 계산. 표준목 5-10본 평균값으로
+  대표. (대체 X — 정직한 측정값만 사용)
+- **기후 결측 18일**: 산악기상 월/연 통계는 이미 보정됨 (D10). 회귀 input 영향 X.
+- **추정간재적 결측**: 해당 나무 *제외*. 표본점 V_actual 산출 시 누락.
+
+**기대 영향**:
+- 보은 86 매칭 표본점 (D12 발견 5) 중 영급 결측 13 제외 → *73 표본점* 유효.
+- 가이드 §3.4 의 27-30 표본점 추정의 *2.4배* — 회귀 강건성 유지.
+
+### 결정 7: 수종 매핑 — D12 결정 활용 + 참나무 통합
+
+**결정**: 표본점 우점수종을 우리 11 수종으로 매핑. 참나무 그룹 통합.
+
+**우점수종 정의**: 표본점 내 *개별 나무 중 본수 최다 수종*.
+
+**매핑 표** (D12 발견 1 보강):
+
+| NFI 수종 | 가이드 매핑 | 처리 |
+|---|---|---|
+| 소나무 | 강원지방소나무 / 중부지방소나무 | 충북 = 중부지방소나무 |
+| 잣나무 | 잣나무 | 그대로 |
+| 리기다소나무 | 리기다소나무 | 그대로 |
+| 일본잎갈나무 | 낙엽송 | 그대로 |
+| 곰솔 | 곰솔 | 그대로 |
+| 신갈나무 | 신갈나무 | 그대로 |
+| 굴참나무 | 굴참나무 | 그대로 |
+| 상수리나무 | 상수리나무 | 그대로 |
+| **졸참나무·갈참나무·떡갈나무** | **참나무 그룹** | **신갈나무 표준 적용** |
+| 기타 (아까시·잔털벚 등) | 매핑 X | *분석 제외* |
+
+**근거**:
+- 참나무류는 가이드 §1.2 우선순위 활엽수에 포함.
+- 동일 *참나무속* — 수고곡선·재적 비슷.
+- D12 발견 1: 참나무 통합 시 매칭 78% (그렇지 않으면 69%).
+
+**예상 분석 대상**:
+- 보은 102 표본점 중 우점수종 매핑 가능 (참나무 통합) ≈ *85-90 표본점*.
+- D6 의 결측 13 제외 → 약 *70-75 표본점* 최종 회귀 input.
+
+### 결정 8: 분석 범위 — 보은 우선, 충북 fallback
+
+**결정**:
+- **1차 회귀**: 보은 *70-75 표본점* (위 결정 6·7 적용).
+- **2차 검증**: 충북 전체 *800-900 표본점* (영급 결측·미매칭 수종 제외).
+
+**근거**:
+- 모듈 A (민석) 가 보은 학습 → 우리도 보은 *일치* (모델 호환성).
+- 보은 70-75 → 가이드 §3.4 추정의 2.4배 — 단독 회귀 강건성 OK.
+- 충북 800+ → 일반화 성능 검증 + 보은 회귀 결과 비교.
+- 발표 시: "보은 모델 학습 + 충북으로 일반화 검증" 의 *학술적 강점*.
+
+### 후속 결정 예고
+
+- **D14**: 등급분포 Weibull fit 설계 (그룹 정의, 형질급 처리, 검증).
+- **D15**: 기후 변수 4개 보강 (NEX-GDDP-CMIP6 또는 ASOS 평년).
+- **D16**: 5·6차 시계열 분석 (영급 변화, 잔차 시간 추세).
+
+### 가이드 매칭
+
+- §2.3 임분수확표의 한계: 기후 보정 layer 필요성 인정 + 구현 결정.
+- §5.4 climate_correct: 알고리즘·하이퍼파라미터·인터페이스 *100% 준수*.
+- §10.3 강수·VPD 부차성: 1차 회귀 2 변수, 2차 보강 정직 기록.
+- §3.4 보은 표본점 추정 27-30: 우리 실측 70-75 (영급 결측 제외) — 2.4배 자산.
+
+### 다음 본 구현 작업
+
+1. `module_bd/src/lookup_yield.py` (또는 lookup_volume.py 의 SI 입력 추가)
+2. `module_bd/src/climate_correct.py`:
+   - SI 추정 함수
+   - V_actual 산출 (대경목조사원 분리)
+   - 표본점 ↔ 산악기상 좌표 매칭
+   - 기후 변수 2개 계산 (temp_anomaly, gdd_cum)
+   - LightGBM fit + 5-fold CV
+   - climate_correct.pkl 저장 + climate_correct() 함수
+3. `module_bd/data/processed/climate_correct.pkl` 산출
+4. `module_bd/tests/test_climate_correct.py` 단위 테스트 5-10개
+
+---
 ## (앞으로 추가 — 결정마다)
