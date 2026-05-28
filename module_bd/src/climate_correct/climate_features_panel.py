@@ -2,13 +2,13 @@
 climate_features_panel.py — 시기별 + 시군별 ASOS anomaly 패널.
 
 목적:
-  · NFI 6차 (2011-2014) + 7차 (2016-2020) 측정 연도별 ASOS anomaly
-  · 5 시군 ASOS × 9 년 = 45 행 패널 데이터
+  · NFI 5차 (2006-2010) + 6차 (2011-2014) + 7차 (2016-2020) 측정 연도별 ASOS anomaly
+  · 5 시군 ASOS × 14 년 = 최대 70 행 패널 데이터
   · 평년: 1991-2020 (30년)
 
 알고리즘:
   1. 시군별 30년 평년 (temp, prcp, gdd, vpd_max) — 한 번 계산
-  2. 각 측정 연도의 시군별 값 (temp, prcp, gdd, vpd_max) — 9 년 × 5 시군
+  2. 각 측정 연도의 시군별 값 (temp, prcp, gdd, vpd_max) — 14 년 × 5 시군
   3. anomaly = (측정 연도) - 평년
 
 출력:
@@ -16,8 +16,8 @@ climate_features_panel.py — 시기별 + 시군별 ASOS anomaly 패널.
   · 컬럼: stn_id, sigun, year, temp_anom, prcp_anom, gdd_anom, vpd_anom
 
 검증:
-  · 시간 변동: 2011 → 2018 같은 시군의 temp_anom 차이
-  · 공간 변동: 2018 시군별 temp_anom 차이
+  · 시간 변동: 5차(2008) → 7차(2018) 같은 시군의 temp_anom 차이 (10년 span)
+  · 공간 변동: 같은 해 시군별 temp_anom 차이
 """
 import json
 import math
@@ -32,8 +32,15 @@ OUT_PATH = OUT_DIR / "asos_anomaly_panel.csv"
 GDD_BASE_TEMP = 5.0
 NORMAL_YEARS = list(range(1991, 2021))  # 1991-2020 평년 (30년)
 
-# NFI 측정 연도 (6차 2011-2014 + 7차 2016-2020)
-NFI_MEASURE_YEARS = [2011, 2012, 2013, 2014, 2016, 2017, 2018, 2019, 2020]
+# NFI 측정 연도 (5차 2006-2010 + 6차 2011-2014 + 7차 2016-2020)
+NFI_MEASURE_YEARS = [2006, 2007, 2008, 2009, 2010,
+                     2011, 2012, 2013, 2014,
+                     2016, 2017, 2018, 2019, 2020]
+
+# 차수별 측정 연도 (검증 출력용)
+NFI5_YEARS = range(2006, 2011)   # 2006-2010
+NFI6_YEARS = range(2011, 2015)   # 2011-2014
+NFI7_YEARS = range(2016, 2021)   # 2016-2020
 
 # 5 ASOS 시군
 STATIONS = [
@@ -129,7 +136,7 @@ def compute_normal(records):
 
 def main():
     print("=" * 80)
-    print("시기별 + 시군별 ASOS anomaly 패널 산출")
+    print("시기별 + 시군별 ASOS anomaly 패널 산출 (5+6+7차 시계열)")
     print("=" * 80)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -151,12 +158,14 @@ def main():
               f"{normal['gdd_cum']:<7.0f} {normal['max_vpd']:<8.3f}")
 
     # 2. 측정 연도별 anomaly 산출
-    print(f"\n[2/3] 측정 연도별 anomaly 산출 (9년 × 5 시군 = 45 행)...")
+    print(f"\n[2/3] 측정 연도별 anomaly 산출 (최대 14년 × 5 시군 = 70 행)...")
     panel = []
+    skipped = []
     for stn_id, data in station_data.items():
         for year in NFI_MEASURE_YEARS:
             stats = annual_stats(data['records'], year)
             if not stats:
+                skipped.append((data['name'], year))
                 continue
             row = {
                 'stn_id': stn_id,
@@ -169,6 +178,8 @@ def main():
             }
             panel.append(row)
     print(f"  패널 행: {len(panel)}")
+    if skipped:
+        print(f"  결측 (300일 미만 skip): {len(skipped)} — {skipped}")
 
     # 3. CSV 저장
     print(f"\n[3/3] CSV 저장...")
@@ -181,39 +192,46 @@ def main():
     print(f"  ✓ {OUT_PATH.relative_to(ROOT)}")
 
     # 검증 — 시기별 anomaly 표
-    print(f"\n{'=' * 80}")
+    print(f"\n{'=' * 90}")
     print("검증 — 시기별 + 시군별 temp_anomaly:")
-    print(f"{'=' * 80}")
+    print(f"{'=' * 90}")
     print(f"{'시군':<8} ", end='')
     for y in NFI_MEASURE_YEARS:
-        print(f"{y:>7}", end='')
+        print(f"{y:>6}", end='')
     print()
-    print('-' * 80)
+    print('-' * 92)
 
     for stn_id, data in station_data.items():
         print(f"{data['name']:<8} ", end='')
         for y in NFI_MEASURE_YEARS:
             row = next((p for p in panel if p['stn_id'] == stn_id and p['year'] == y), None)
             if row:
-                print(f"{row['temp_anom']:>+7.2f}", end='')
+                print(f"{row['temp_anom']:>+6.2f}", end='')
             else:
-                print(f"{'?':>7}", end='')
+                print(f"{'?':>6}", end='')
         print()
 
-    # 시간 변동 + 공간 변동 분석
+    # 시간 변동 — 5차 vs 6차 vs 7차 (10년 span)
     print(f"\n{'=' * 80}")
-    print("시간 변동 (6차 시기 vs 7차 시기):")
+    print("시간 변동 (5차 2008 vs 6차 2012.5 vs 7차 2018, 10년 span):")
     print(f"{'=' * 80}")
     for stn_id, data in station_data.items():
+        nfi5 = [p['temp_anom'] for p in panel
+                if p['stn_id'] == stn_id and p['year'] in NFI5_YEARS]
         nfi6 = [p['temp_anom'] for p in panel
-                if p['stn_id'] == stn_id and 2011 <= p['year'] <= 2014]
+                if p['stn_id'] == stn_id and p['year'] in NFI6_YEARS]
         nfi7 = [p['temp_anom'] for p in panel
-                if p['stn_id'] == stn_id and 2016 <= p['year'] <= 2020]
-        if nfi6 and nfi7:
-            avg6 = sum(nfi6) / len(nfi6)
-            avg7 = sum(nfi7) / len(nfi7)
-            print(f"  {data['name']}: 6차 평균 {avg6:+.3f}°C, 7차 평균 {avg7:+.3f}°C, "
-                  f"차이 {avg7-avg6:+.3f}°C")
+                if p['stn_id'] == stn_id and p['year'] in NFI7_YEARS]
+        parts = [f"  {data['name']}:"]
+        if nfi5:
+            parts.append(f"5차 {sum(nfi5)/len(nfi5):+.3f}C")
+        if nfi6:
+            parts.append(f"6차 {sum(nfi6)/len(nfi6):+.3f}C")
+        if nfi7:
+            parts.append(f"7차 {sum(nfi7)/len(nfi7):+.3f}C")
+        if nfi5 and nfi7:
+            parts.append(f"(5->7 차이 {sum(nfi7)/len(nfi7)-sum(nfi5)/len(nfi5):+.3f}C)")
+        print(", ".join(parts))
 
     # 전체 변동 통계
     print(f"\n{'=' * 80}")
@@ -221,9 +239,11 @@ def main():
     print(f"{'=' * 80}")
     temps = [p['temp_anom'] for p in panel]
     if temps:
+        mean_t = sum(temps) / len(temps)
+        std_t = (sum((t - mean_t)**2 for t in temps) / len(temps)) ** 0.5
         print(f"  temp_anom 범위: {min(temps):+.3f} ~ {max(temps):+.3f}")
-        print(f"  표준편차: {(sum((t-sum(temps)/len(temps))**2 for t in temps)/len(temps))**0.5:.3f}")
-        print(f"  → 시계열 회귀의 input 변동.")
+        print(f"  표준편차: {std_t:.3f}")
+        print(f"  → 시계열 회귀의 input 변동 (5차 추가로 10년 span 확대).")
 
 
 if __name__ == "__main__":

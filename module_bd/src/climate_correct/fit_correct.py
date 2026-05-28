@@ -1,38 +1,33 @@
 """
-fit_correct.py v5 (복원) — NFI 6차 + 7차 시계열 패널 회귀.
+fit_correct.py v8 — NFI 5+6+7차 시계열 패널 회귀 + SI (지위지수) 변수 추가.
 
-D13 결정 8 + 정우님 통찰 (시간 anomaly 진짜 변동) 통합:
-  · NFI 6차 (2011-2014) + 7차 (2016-2020) 통합 패널
-  · 시군별 + 측정 연도별 ASOS anomaly (panel csv 사용)
+D13 결정 8 + 정우님 통찰 + D16 (5차 통합) + D17 (SI 변수):
+  · NFI 5차 (2006-2010) + 6차 (2011-2014) + 7차 (2016-2020) 통합 패널
+  · 시군별 + 측정 연도별 ASOS anomaly (panel csv, 70 행)
   · LightGBM 회귀
 
-변수 (6):
-  시간/공간 anomaly (panel, 측정 연도별):
-    · temp_anomaly_30y
-    · prcp_anomaly_30y
-    · gdd_anomaly
-    · vpd_anomaly
-  공간:
-    · elev
-    · imsang_code (D/H/M, 3 그룹)
-
-결과 (정직):
-  · 행 수: 1369 (6차 614 + 7차 755)
-  · R² = +0.204 ± 0.074 ⭐
-  · 변수 중요도: elev 51%, prcp 14%, vpd 13%, temp 10%, imsang 6%, gdd 6%
+변수 (7):
+  시간/공간 anomaly:
+    · temp_anomaly_30y, prcp_anomaly_30y, gdd_anomaly, vpd_anomaly
+  공간/입지:
+    · elev (해발고)
+    · imsang_code (D/H/M)
+    · si (지위지수) ← v8 NEW (입지 생산력, 이미 계산되던 값 재활용)
 
 진전 비교:
   v1 (보은, 산악기상): -0.013
   v2 (보은, ASOS 상수): -0.029
   v3 (보은, +임상): -0.039
   v4 (충북 5 시군): +0.027
-  v5 (충북, 6+7차 패널): +0.204 ⭐ 정직한 best
+  v5 (충북, 6+7차 패널): +0.204 (시점 2)
+  v7 (충북, 5+6+7차 패널): +0.204 (시점 3, std 0.074->0.038 안정성 2배)
+  v8 (v7 + SI 변수): ??? ← 이번
 
-이후 시도 (v6 = species 세분화 + 이상치 제거):
-  v6: -0.057 (역효과)
-  → 정직한 ablation: v5 가 best
-  → species 세분화 = 표본 부족 (낙엽송 92, 잣 55)
-  → 이상치 제거 = 진짜 신호 손실
+SI (지위지수) 추가 근거:
+  · 입지 생산력 지표 (같은 수종·나이라도 SI 높으면 큰 나무)
+  · 기존 estimate_si 결과가 V_table lookup 후 버려지던 값 재활용
+  · elev 와 다른 정보 (입지 질) → 잔차 설명 기대
+  · 시간 불변 → 미래 예측 (climate_scenario) 에도 유효
 """
 import sys
 import json
@@ -54,6 +49,8 @@ PROCESSED_DIR = ROOT / "module_bd" / "data" / "processed"
 PANEL_CSV = PROCESSED_DIR / "asos_anomaly_panel.csv"
 MODEL_PATH = PROCESSED_DIR / "climate_correct.pkl"
 
+STAND_5 = NFI_DIR / "nfi5_chungbuk_stand.csv"
+TREE_5 = NFI_DIR / "nfi5_chungbuk_tree.csv"
 STAND_6 = NFI_DIR / "nfi6_chungbuk_stand.csv"
 TREE_6 = NFI_DIR / "nfi6_chungbuk_tree.csv"
 STAND_7 = NFI_DIR / "nfi7_chungbuk_stand.csv"
@@ -247,6 +244,7 @@ def process_nfi_year(stands, trees, yield_df, year_label, panel):
             'residual': residual,
             'elev': elev,
             'imsang_code': imsang_code,
+            'si': si,                              # v8 NEW (지위지수)
             'temp_anomaly_30y': anom['temp_anom'],
             'prcp_anomaly_30y': anom['prcp_anom'],
             'gdd_anomaly': anom['gdd_anom'],
@@ -259,7 +257,7 @@ def process_nfi_year(stands, trees, yield_df, year_label, panel):
 
 def main():
     print("=" * 80)
-    print("climate_correct() v5 (복원) — 시계열 패널 + imsang_code")
+    print("climate_correct() v8 — 5+6+7차 패널 + SI (지위지수)")
     print("=" * 80)
 
     # 1. 데이터 로딩
@@ -267,20 +265,25 @@ def main():
     panel = load_panel()
     print(f"  ASOS anomaly panel: {len(panel)} (시군 × 연도)")
 
+    s5 = load_csv_rows(STAND_5)
+    t5 = load_csv_rows(TREE_5)
     s6 = load_csv_rows(STAND_6)
     t6 = load_csv_rows(TREE_6)
     s7 = load_csv_rows(STAND_7)
     t7 = load_csv_rows(TREE_7)
     yield_df = _load_stand_table()
+    print(f"  NFI 5차: {len(s5)} 표본점, {len(t5)} 나무")
     print(f"  NFI 6차: {len(s6)} 표본점, {len(t6)} 나무")
     print(f"  NFI 7차: {len(s7)} 표본점, {len(t7)} 나무")
 
     # 2. 차수별 처리
-    print(f"\n[2/7] NFI 6·7차 통합 패널 생성...")
+    print(f"\n[2/7] NFI 5·6·7차 통합 패널 생성...")
+    rows_5 = process_nfi_year(s5, t5, yield_df, 5, panel)
     rows_6 = process_nfi_year(s6, t6, yield_df, 6, panel)
     rows_7 = process_nfi_year(s7, t7, yield_df, 7, panel)
-    df = pd.DataFrame(rows_6 + rows_7)
-    print(f"\n  통합 패널: {len(df)} 행 (6차 {len(rows_6)} + 7차 {len(rows_7)})")
+    df = pd.DataFrame(rows_5 + rows_6 + rows_7)
+    print(f"\n  통합 패널: {len(df)} 행 "
+          f"(5차 {len(rows_5)} + 6차 {len(rows_6)} + 7차 {len(rows_7)})")
 
     if len(df) < 100:
         print(f"  ⚠ 행 너무 적음.")
@@ -290,19 +293,22 @@ def main():
     print(f"\n[3/7] 패널 통계:")
     print(f"  residual: 평균 {df['residual'].mean():+.1f}, std {df['residual'].std():.1f}")
     print(f"  temp_anomaly std: {df['temp_anomaly_30y'].std():.3f}")
+    print(f"  si 범위: {df['si'].min():.0f} ~ {df['si'].max():.0f}, 평균 {df['si'].mean():.1f}")
     print(f"  차수별 잔차:")
-    for r in [6, 7]:
+    for r in [5, 6, 7]:
         sub = df[df['nfi_round'] == r]
-        print(f"    {r}차: n={len(sub)}, 평균 {sub['residual'].mean():+.1f}, std {sub['residual'].std():.1f}")
+        if len(sub) > 0:
+            print(f"    {r}차: n={len(sub)}, 평균 {sub['residual'].mean():+.1f}, "
+                  f"std {sub['residual'].std():.1f}")
 
     # 4. 5-fold CV
-    print("\n[4/7] LightGBM + 5-fold CV (시계열 패널)...")
+    print("\n[4/7] LightGBM + 5-fold CV (SI 변수 포함)...")
     from lightgbm import LGBMRegressor
     from sklearn.model_selection import KFold
     from sklearn.metrics import r2_score, mean_squared_error
 
     FEATURES = ['temp_anomaly_30y', 'prcp_anomaly_30y', 'gdd_anomaly', 'vpd_anomaly',
-                'elev', 'imsang_code']
+                'elev', 'imsang_code', 'si']
     X = df[FEATURES]
     y = df['residual']
 
@@ -323,11 +329,11 @@ def main():
         rmse = np.sqrt(mean_squared_error(y.iloc[val_idx], pred))
         r2_scores.append(r2)
         rmse_scores.append(rmse)
-        print(f"  fold {fold}: R²={r2:+.3f}, RMSE={rmse:.1f}, n_val={len(val_idx)}")
+        print(f"  fold {fold}: R2={r2:+.3f}, RMSE={rmse:.1f}, n_val={len(val_idx)}")
 
     print(f"\n  5-fold CV:")
-    print(f"    R² = {np.mean(r2_scores):+.3f} ± {np.std(r2_scores):.3f}")
-    print(f"    RMSE = {np.mean(rmse_scores):.1f} ± {np.std(rmse_scores):.1f}")
+    print(f"    R2 = {np.mean(r2_scores):+.3f} +- {np.std(r2_scores):.3f}")
+    print(f"    RMSE = {np.mean(rmse_scores):.1f} +- {np.std(rmse_scores):.1f}")
 
     # 5. 최종 모델
     print("\n[5/7] 최종 모델...")
@@ -342,7 +348,7 @@ def main():
     total = sum(imp for _, imp in importances)
     for feat, imp in sorted(importances, key=lambda x: -x[1]):
         pct = imp / total * 100 if total > 0 else 0
-        bar = '█' * int(pct / 3)
+        bar = '#' * int(pct / 3)
         print(f"    {feat:<20}: {imp:>5} ({pct:>5.1f}%) {bar}")
 
     # 6. 저장
@@ -356,12 +362,14 @@ def main():
         'imsang_mapping': IMSANG_TO_CODE,
         'metadata': {
             'algorithm': 'LightGBM',
+            'version': 'v8 (5+6+7차 + SI)',
             'n_samples': len(df),
             'cv_r2_mean': float(np.mean(r2_scores)),
             'cv_r2_std': float(np.std(r2_scores)),
             'cv_rmse_mean': float(np.mean(rmse_scores)),
             'cv_rmse_std': float(np.std(rmse_scores)),
             'data': {
+                'nfi5_rows': len(rows_5),
                 'nfi6_rows': len(rows_6),
                 'nfi7_rows': len(rows_7),
                 'total_rows': len(df),
@@ -369,19 +377,32 @@ def main():
         },
     }
     joblib.dump(save_dict, MODEL_PATH)
-    print(f"  ✓ {MODEL_PATH.relative_to(ROOT)} ({MODEL_PATH.stat().st_size // 1024} KB)")
+    print(f"  OK {MODEL_PATH.relative_to(ROOT)} ({MODEL_PATH.stat().st_size // 1024} KB)")
 
     # 7. 비교
     print(f"\n{'=' * 80}")
-    print("[7/7] R² 발전 비교 (5 시도 정직한 진전):")
+    print("[7/7] R2 발전 비교 (정직한 진전):")
     print(f"{'=' * 80}")
     r2_mean = np.mean(r2_scores)
-    print(f"  v1 (보은, 산악기상만):       R² = -0.013")
-    print(f"  v2 (보은, +ASOS 30y 상수):   R² = -0.029")
-    print(f"  v3 (보은, +임상):            R² = -0.039")
-    print(f"  v4 (충북, ASOS 5 시군):     R² = +0.027")
-    print(f"  v5 (충북, 6+7차 패널):      R² = {r2_mean:+.3f} ⭐")
-    print(f"\n  → v5 = best. 시계열 패널 + imsang_code 최적.")
+    print(f"  v1 (보은, 산악기상만):       R2 = -0.013")
+    print(f"  v2 (보은, +ASOS 30y 상수):   R2 = -0.029")
+    print(f"  v3 (보은, +임상):            R2 = -0.039")
+    print(f"  v4 (충북, ASOS 5 시군):     R2 = +0.027")
+    print(f"  v5 (충북, 6+7차 패널):      R2 = +0.204 (시점 2)")
+    print(f"  v7 (충북, 5+6+7차 패널):    R2 = +0.204 (시점 3, std 0.038)")
+    print(f"  v8 (v7 + SI 변수):          R2 = {r2_mean:+.3f} <- 이번")
+    diff = r2_mean - 0.204
+    print(f"\n  v7 -> v8 변화: {diff:+.3f}")
+    # SI 중요도
+    si_imp = next((imp for feat, imp in importances if feat == 'si'), 0)
+    si_pct = si_imp / total * 100 if total > 0 else 0
+    print(f"  SI 변수 중요도: {si_pct:.1f}%")
+    if diff > 0.01 and si_pct > 8:
+        print(f"  -> SI 효과 있음 (R2 상승 + 중요도 높음). 채택.")
+    elif diff > -0.01:
+        print(f"  -> 비슷. SI 가 elev 와 정보 중복 가능 (중요도 확인).")
+    else:
+        print(f"  -> 하락. SI 추정 오차가 노이즈. 정직히 제거 고려.")
 
 
 if __name__ == "__main__":
