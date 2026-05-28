@@ -18,6 +18,15 @@ from functools import lru_cache
 
 import json
 
+# D14 등급분포 (Weibull) 통합
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from grade_distribution import grade_distribution
+    _HAS_GRADE = True
+except ImportError:
+    _HAS_GRADE = False
+
 ROOT = Path(__file__).resolve().parents[2]
 PARQUET_VOLUME = ROOT / "module_bd" / "data" / "interim" / "yield_table_full.parquet"
 PARQUET_STAND = ROOT / "module_bd" / "data" / "interim" / "yield_table_stand.parquet"
@@ -426,7 +435,7 @@ def growth_predict(
     Returns:
         List[dict]: 각 시점의 임분 상태
             [{"dt": 0, "age": 50, "volume": 296.2, "dbh": 33.0, "height": 19.0,
-              "n_per_ha": 489, "grade_distribution": None,
+              "n_per_ha": 489, "grade_distribution": {...},
               "tmai_m3_per_ha_yr": 4.93, "method": "exact", "warning": None}, ...]
         
         또는 에러 시:
@@ -467,6 +476,12 @@ def growth_predict(
     species_warning = None
     if species in STAND_TENTATIVE:
         species_warning = f"{species}는 (잠정) 데이터 — PDF 원문 표시"
+    
+    # 등급분포용 임상 코드 (growth_predict 입력엔 임상 없음 → 영급 fallback)
+    # 수종 기반 임상 추정 (침엽수/활엽수)
+    CONIFERS = {"강원지방소나무", "중부지방소나무", "소나무", "잣나무",
+                "낙엽송", "리기다소나무", "편백", "곰솔", "삼나무", "해송"}
+    imsang_for_grade = "침엽수림(D)" if species in CONIFERS else "활엽수림(H)"
     
     # 각 시점 lookup
     trajectory = []
@@ -513,6 +528,22 @@ def growth_predict(
         if carbon["warning"]:
             warns.append(carbon["warning"])
         
+        # 등급분포 (D14 Weibull) ⭐ NEW
+        # 임령 → 영급: (age-1)//10 + 1 (D11 결정 3, 1영급=1-10년)
+        grade_dist = None
+        if _HAS_GRADE and stand["n_per_ha"] is not None:
+            _ac = min(max((int(stand["age"]) - 1) // 10 + 1, 1), 10)
+            try:
+                _g = grade_distribution(_ac, imsang_for_grade, int(stand["n_per_ha"]))
+                grade_dist = {
+                    "소경재": _g["소경재"],
+                    "중경재": _g["중경재"],
+                    "대경재": _g["대경재"],
+                    "fallback": _g["fallback"],
+                }
+            except Exception:
+                grade_dist = None
+        
         trajectory.append({
             "dt": dt,
             "age": int(stand["age"]),
@@ -522,7 +553,7 @@ def growth_predict(
             "dominant_height": stand["dominant_height_m"], # m
             "n_per_ha": stand["n_per_ha"],
             "tmai_m3_per_ha_yr": stand["tmai_m3_per_ha_yr"],
-            "grade_distribution": None,  # NFI Weibull 미구현 (Module A 작업 필요)
+            "grade_distribution": grade_dist,  # D14 Weibull (수종→임상 추정 + 영급) ⭐
             "carbon_uptake_rate": carbon["carbon_uptake_rate"],  # tCO2/ha/yr ⭐ NEW
             "carbon_method": carbon["method"],                    # exact|interpolated|extrapolated
             "climate_scenario": climate_scenario,
@@ -555,10 +586,12 @@ if __name__ == "__main__":
             print(f"   dt={t['dt']:>2}: ❌ {t['warning']}")
             continue
         carbon_str = f"C={t['carbon_uptake_rate']:>5.2f}" if t.get('carbon_uptake_rate') else "C=N/A "
+        g = t.get('grade_distribution')
+        grade_str = (f"등급[소{g['소경재']} 중{g['중경재']} 대{g['대경재']}]"
+                     if g else "등급[N/A]")
         print(f"   dt={t['dt']:>2}, 임령={t['age']:>2}년: "
               f"V={t['volume']:>6.1f} m³/ha, DBH={t['dbh']:>5.1f}cm, "
-              f"H={t['height']:>4.1f}m, N={t['n_per_ha']:>4.0f}/ha, "
-              f"{carbon_str} tCO2/ha/yr")
+              f"N={t['n_per_ha']:>4.0f}/ha, {carbon_str}, {grade_str}")
     
     # 테스트 2: 강원지방소나무 (충북 보은 주력)
     print("\n📌 충북 보은 주력: 강원지방소나무 SI=14 age=30 forecast=[0,10,20,30]")
@@ -571,9 +604,12 @@ if __name__ == "__main__":
             print(f"   dt={t['dt']:>2}: ❌ {t['warning']}")
             continue
         carbon_str = f"C={t['carbon_uptake_rate']:>5.2f}" if t.get('carbon_uptake_rate') else "C=N/A "
+        g = t.get('grade_distribution')
+        grade_str = (f"등급[소{g['소경재']} 중{g['중경재']} 대{g['대경재']}]"
+                     if g else "등급[N/A]")
         print(f"   dt={t['dt']:>2}, 임령={t['age']:>2}년: "
               f"V={t['volume']:>6.1f} m³/ha, DBH={t['dbh']:>5.1f}cm, "
-              f"{carbon_str} tCO2/ha/yr")
+              f"{carbon_str}, {grade_str}")
     
     # 테스트 3: 보간 (forecast_years 가 표에 없는 임령 만듦)
     print("\n📌 보간: 강원지방소나무 SI=14 age=27 forecast=[3, 8, 13]")
