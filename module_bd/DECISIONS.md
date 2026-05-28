@@ -1221,4 +1221,81 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
 4. `module_bd/tests/test_climate_correct.py` 단위 테스트 5-10개
 
 ---
+
+### D13 사후 보강 (2026-05-27 저녁)
+
+**진행 상태: (Day 6, 진행) → (Day 6, 완료)**
+
+#### 실측 5 시도 진전
+
+D13 결정 8 의 "표본점 ~70-75 예상" 정도가 *적었음* 발견. 다양한 변수·구조 조합 시도:
+
+| 시도 | 입력 데이터 | 변수 | 표본 | R² | 정직한 한계 |
+|---|---|---|---|---|---|
+| v1 | 보은 7차 + 산악기상 4년 | 3 | 68 | **-0.013** | 시기 미스매치 (2022-25 산악기상 vs 2016-20 NFI) |
+| v2 | + ASOS 30y 평년 (보은 1개) | 6 | 68 | **-0.029** | 4 anomaly 상수 → LightGBM 학습 신호 0 |
+| v3 | + 임상 (D/H/M) | 7 | 65 | **-0.039** | 변수 추가만으로 한계, 과적합 |
+| v4 | 충북 + ASOS 5 시군 매칭 | 6 | 755 | **+0.027** | 첫 양수, 공간 변동 작음 |
+| **v5** | **+ NFI 6차 시계열 패널** | **6** | **1369** | **+0.204** | **시간 변동 학습 성공 (best)** |
+
+#### 결정적 통찰 (사용자 짚음)
+
+1. *시기 미스매치 의심* → ASOS 30년 평년 확보 (시도 2-3)
+2. *충북 확장 가치 평가* → 5 시군 ASOS (시도 4)
+3. *NFI 시기 맞춤 핵심* → 6+7차 시계열 패널 (시도 5, 큰 진전)
+4. *B 분리 코드 정직성* → climate_features_panel.py + fit_correct.py 분리 유지
+
+#### v5 변수 중요도
+
+| 변수 | 중요도 | 비고 |
+|---|---|---|
+| elev | 51.4% | 공간 변수 (해발고), 압도적 |
+| prcp_anomaly_30y | 14.0% | 강수 anomaly |
+| vpd_anomaly | 12.6% | 수증기 부족 anomaly |
+| temp_anomaly_30y | 9.9% | 기온 anomaly |
+| imsang_code | 6.3% | 임상 (D/H/M) |
+| gdd_anomaly | 5.8% | GDD 누적 anomaly |
+
+기후 4 변수 합계: 42.3% (v4 의 18.3% → 2.3배 증가)
+
+#### 정직한 한계 (잔차 79.6% 가 모델 외)
+
+- *임분 우연성*: 특정 표본점의 강한 나무 1-2개
+- *측정 오차*: 표준목 5-10본 평균의 표본 오차
+- *NFI 5차 미통합*: 영문 코드 + Bessel 좌표 변환 필요 (다음 작업)
+- *V_table 시간 고정*: 임분수확표 2014 정적 (6차 7차 둘 다 같은 V_table)
+
+#### v6 ablation 결과 (실패 시도, 정직한 기록)
+
+- 시도: 이상치 제거 (1%/99% 분위수) + 수종 세분화 (3 그룹 → 7 수종)
+- 결과: R² 0.204 → 0.147 (-0.057, 역효과)
+- 학습:
+  - 이상치 제거 = 진짜 신호 (낙엽송 +146 등) 손실
+  - 7 수종 = 일부 표본 부족 (낙엽송 92, 잣 55) → 과적합
+- 결정: v5 = best 모델 유지
+
+#### 가이드 비교
+
+- 가이드 §10.3: "Module B 는 baseline scenario (lookup만, 기후 보정 제외) 도 valid"
+- 우리 R² 0.204 = baseline 보다 *유의미한 진전*
+- 가이드 §5.4 R² 0.5-0.7 추정 대비 낮으나, 가이드 = NEX-GDDP + SHAP 더 정교, 우리 = ASOS + LightGBM 단순화
+
+#### 산출물
+
+- `module_bd/data/processed/climate_correct.pkl` (best 모델, 261 KB)
+- `module_bd/data/processed/asos_anomaly_panel.csv` (45 행 시기별 anomaly 패널)
+- `module_bd/src/climate_correct/fit_correct.py` (v5 회귀)
+- `module_bd/src/climate_correct/climate_features_panel.py` (시기별 anomaly 산출)
+- `module_bd/src/climate_correct/asos_features.py` (보은 평년 산출)
+- `module_bd/src/climate_correct/asos_chungbuk_features.py` (5 시군 평년)
+- `module_bd/src/asos_collect.py` + `asos_chungbuk_collect.py` (수집 인프라)
+- ASOS 5 시군 1991-2020 일자료 (54,790 행, ~55MB)
+
+#### 다음
+
+- D14 (Weibull 등급분포) 진행
+- 향후 R² 개선 가능: NFI 5차 통합 (영문 매핑 + Bessel 변환 작업)
+
+---
+
 ## (앞으로 추가 — 결정마다)
