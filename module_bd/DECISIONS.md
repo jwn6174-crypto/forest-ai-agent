@@ -1298,4 +1298,150 @@ D13 결정 8 의 "표본점 ~70-75 예상" 정도가 *적었음* 발견. 다양�
 
 ---
 
+## D14: 등급분포 Weibull fit 설계 결정 (Day 7, 완료)
+
+**일자**: 2026-05-28 (Day 7)
+**책임**: 정우 (모듈 B/D)
+**관련 가이드**: §5.5 등급분포, §8.1 GrowthForecast.grade_distribution_trajectory
+
+### 배경
+
+D11 (NFI 단위) + D12 (csv 추출·진단) 완료. growth_predict() 는 임분의
+*평균* volume/dbh/height 만 출력. 그러나 실제 임분은 큰·중간·작은 나무 혼합.
+정확한 *원목 등급별 매출* (Faustmann NPV) 을 위해 DBH 분포 필요.
+
+가이드 §5.5: "수종·영급별 등급분포 (Weibull) fit".
+가이드 §8.1: `GrowthForecast.grade_distribution_trajectory` (Optional 필드).
+
+### 진단 결과 (weibull_probe.py)
+
+- 충북 46,722 그루, DBH 6-78cm, 평균 16.8cm.
+- 히스토그램: 역-J 분포 (8-12cm 피크 11,179, 오른쪽 꼬리).
+- **전체 왜도 +1.112** → 오른쪽 꼬리 분포. Weibull 교과서적 적합.
+- 영급 × 임상 23 그룹 (≥100 그루), 영급 fallback 7 그룹.
+
+### 결정 1: 분포 모델 — Weibull min (loc 고정 6cm)
+
+**결정**: `scipy.stats.weibull_min`, loc=6cm 고정 (floc).
+
+**근거**:
+- Weibull = 임분 직경분포 표준 모델 (학술 문헌 다수).
+- 2 모수 (shape c, scale λ) — 간결, 해석 가능.
+- loc=6 고정: NFI 기본조사원 최소 측정 DBH 6cm = 분포 시작점.
+  loc 자유 fit 시 음수 가능 (비물리적) → 고정이 안전.
+
+**대안**:
+- 정규분포: 왜도 +1.112 무시 → 부적합.
+- 로그정규: 가능하나 Weibull 이 임업 표준.
+- 감마: Weibull 과 유사, 임업 관례상 Weibull.
+
+### 결정 2: 그룹 단위 — 영급 × 임상 + 영급 fallback
+
+**결정**: 영급 × 임상 (23 그룹) 우선, 없으면 영급 (7 그룹) fallback,
+그래도 없으면 가장 가까운 영급.
+
+**근거**:
+- 가이드 §5.5 "수종·영급별" + 우리 임상 (D/H/M) 추가 = 더 세밀.
+- D12 발견: 그룹당 수백~수천 그루 → 강건 fit.
+- 수종별 (신갈 882, 소나무 842) 도 가능하나, climate_correct v6 의
+  수종 세분화 실패 경험 → 영급 × 임상 이 더 안정적 (표본 충분).
+- fallback 계층: 그룹 → 영급 → nearest 영급 (항상 답 보장).
+
+**대안 (수종별)**: 추후 보강 가능. 현재 미채택.
+
+### 결정 3: 형질급 처리 — 무관 (DBH 분포 자체)
+
+**결정**: 형질급 (1/2/3급) 무관. 전체 그루 DBH 분포 fit.
+
+**근거**:
+- D12 발견 4 잠정 추천 옵션 B: 등급분포는 형질급 무관, DBH 분포 자체.
+- 원목 *등급* = DBH 크기 (소경/중경/대경) → 형질급과 별개 개념.
+- 형질급 = 통직·부패 등 품질 → 추후 가격 보정에 별도 활용 가능.
+
+### 결정 4: DBH 등급 구분 — 소경/중경/대경
+
+**결정**:
+- 소경재: 6-18cm
+- 중경재: 18-30cm
+- 대경재: 30cm+
+
+**근거**: 한국 원목 시장 통용 구분. KOFPI 가격 등급과 연계 가능.
+NFI 경급 코드 (D11 결정 6: 소경 6-18, 중경 18-30, 대경 30+) 와 일치.
+
+### 결정 5: 검증 — KS 검정 + 등급 비율 단조성
+
+**결정**: Kolmogorov-Smirnov 검정 (적합도) + 등급 비율 물리 검증 병행.
+
+**KS 결과 (정직한 한계)**:
+- KS 적합 (p>0.05): **2/23 그룹 (9%)**.
+- 대부분 그룹 p<0.05 (기각).
+
+**정직한 해석 — KS 낮음이 실패 아닌 이유**:
+1. KS 검정은 대표본 (n>1000) 에서 *극도로 엄격*. 미세 편차도 기각.
+   - 4영급 활엽수 9,230 그루 → p=0.000 (기각).
+   - 7영급 혼효림 136 그루 → p=0.436 (통과). 작은 표본만 통과.
+2. shape ~1.0-1.6 = 전형적 임분 Weibull (문헌 일치).
+3. **등급 비율 단조 증가 = 모수 유효성 진짜 증거**:
+   - 대경재 비율: 2영급 0.1% → 4영급 6.8% → 6영급 17.0% → 8영급 17.8%.
+   - 영급 ↑ → 대경재 ↑ (생장 물리 법칙 완벽 매칭).
+
+**결론**: KS p 낮으나 모수는 등급 비율 산출에 유효. 학술 정직성으로
+KS 한계 명시 + 물리 검증으로 유효성 별도 입증.
+
+### 결정 6: grade_distribution() 함수 인터페이스
+
+**결정**:
+```python
+grade_distribution(age_class, imsang=None, n_total_per_ha=None)
+# 반환: {소경재, 중경재, 대경재 (본수), proportions, shape, scale, fallback}
+
+grade_distribution_trajectory(age_class_now, imsang, n_per_ha_trajectory, forecast_years)
+# growth_predict() trajectory 통합용
+```
+
+**근거**:
+- 가이드 §8.1 `grade_distribution_trajectory` 필드 채움.
+- 단일 (특정 시점) + trajectory (시계열) 둘 다 지원.
+- 비율 정규화 (CDF 차이 합으로 나눔) → 본수 합 ≈ 입력.
+
+**trajectory 검증 (물리적 정상)**:
+- 4영급 시작 → 30년: 본수 감소 (1200→550, 자연 도태) + 대경재 비율 증가.
+- 20→30년 대경재 절대 본수 감소 (129→91): 비율↑ 하나 전체 본수↓ 가 큼.
+  노령림 = 큰 나무 있으나 그루 적음. NPV 는 재적으로 보상.
+
+### 산출물
+
+- `module_bd/src/diagnose/weibull_probe.py` (DBH 분포 진단)
+- `module_bd/src/weibull_fit.py` (Weibull fit → json)
+- `module_bd/src/grade_distribution.py` (등급별 본수 예측 함수)
+- `module_bd/data/processed/weibull_params.json` (23 그룹 + 7 fallback 모수)
+- `module_bd/tests/test_grade_distribution.py` (14 테스트 통과)
+
+### 한계
+
+- KS 적합률 9% (대표본 엄격) — 모수는 등급 비율로 유효성 입증.
+- 수종별 fit 미구현 (영급 × 임상 우선). 추후 보강 가능.
+- 영급 추정 단순 (10년마다 +1영급) — 실제 생장률 변동 미반영.
+- NFI 7차 단일 시점 — 시계열 (5/6차) 등급분포 변화 미분석.
+- growth_predict() 통합 미완 (함수는 준비, 호출 연결은 다음 작업).
+
+### 가이드 매칭
+
+- §5.5 등급분포 Weibull fit *구현 완료*.
+- §8.1 `grade_distribution_trajectory` 채움 (함수 준비).
+- §3.2 lookup_volume (DBH → 재적) 과 연계 가능.
+
+### 다음 작업과 연결
+
+- growth_predict() 에 grade_distribution_trajectory 통합 (n_per_ha 활용).
+- 희도 모듈 C: 등급별 본수 × 등급별 재적 × 등급별 가격 = 원목 매출.
+- (선택) 시각화: 히스토그램 + Weibull 곡선 (발표 Figure).
+
+### 후속 결정 예고
+
+- **D15**: 기후 변수 4개 보강 (NEX-GDDP-CMIP6 또는 ASOS 평년) — R² 개선.
+- **D16**: NFI 5·6차 시계열 분석 (영급 변화, 잔차 시간 추세, 등급분포 변화).
+
+---
+
 ## (앞으로 추가 — 결정마다)
