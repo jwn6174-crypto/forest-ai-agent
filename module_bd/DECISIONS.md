@@ -1444,4 +1444,332 @@ grade_distribution_trajectory(age_class_now, imsang, n_per_ha_trajectory, foreca
 
 ---
 
+## D16: NFI 5차 통합 — 시계열 3시점 확장 (Day 7, 완료)
+
+**일자**: 2026-05-28 (Day 7)
+**책임**: 정우 (모듈 B/D)
+**관련 가이드**: §5.4 climate_correct, §3.1 NFI 데이터
+
+### 배경
+
+D13 사후보강에서 v5 (NFI 6+7차 패널, R² 0.204) 달성. "향후 R² 개선:
+NFI 5차 통합" 예고. 5차 통합 시 시계열 시점 2 → 3 (2008/2012.5/2018),
+시간 span 확대로 anomaly 변동 증가 기대. D13 에서 우려한 "영문 코드 +
+Bessel 좌표 변환"의 실제 난이도를 진단으로 확정.
+
+### 진단 결과 — 5차 통합 장벽 *모두 해소* (큰 발견)
+
+5차 xlsx 구조 진단 (nfi_5_6_7_probe + nfi5_coord_probe):
+
+| 항목 | 우려 (D13) | 실측 진단 | 결론 |
+|---|---|---|---|
+| 컬럼명 | 영문 코드 | GYEAR, SP_ID, GF_CODE_*_NM 등 | 한글 매핑만 |
+| 좌표 | Bessel 변환 필요 | 충북 Y 283666~415745, X 227884~343976 | **7차와 동일 범위 (EPSG:5181, 변환 불필요)** |
+| 표본점 ID | 불일치 우려 | 5차·7차 직접 공통 **1078개** | 고정표본점 동일 |
+| 임상 코드 | 다를 수 있음 | '침엽수림(D)', '활엽수림(H)', '혼효림(M)' | 6/7차와 동일 |
+| 영급 코드 | 다를 수 있음 | '1영급'~'9영급' | 6/7차와 동일 |
+| 측정연도 | 불명 | 2006~2010 균등 (247/224/217/202/225) | 시점 3 확보 |
+| 수고 단위 | 불명 | 340~2590 (cm), 유효 21.2% | ÷100 = m (6/7차 동일) |
+
+**핵심**: "Bessel" 라벨이나 좌표값은 EPSG:5181 동일 범위 → 변환 불필요.
+좌표·ID·임상·영급 코드 모두 6/7차와 동일 → 영문→한글 매핑 + 수고 cm→m
+변환만으로 통합 가능. 예상 난이도(3-4시간)보다 훨씬 단순.
+
+### 결정 1: 5차 추출 — 6/7차 호환 컬럼명으로 저장
+
+**결정**: 영문 컬럼 → 한글 (6/7차 동일 컬럼명) 매핑. 수고/추정수고 cm→m
+변환 후 저장. fit_correct.py 가 차수 구분 없이 동일 처리 가능.
+
+**산출**: nfi5_chungbuk_stand.csv (1115 표본점, 141KB),
+nfi5_chungbuk_tree.csv (52807 그루, 3218KB). raw/nfi/ gitignore 차단.
+
+### 결정 2: ASOS anomaly panel 확장 — 2006-2010 추가
+
+**결정**: NFI_MEASURE_YEARS 에 2006-2010 추가 (9→14년). 평년은 동일
+1991-2020. ASOS 일자료가 이미 1991-2020 보유 → 추가 수집 불필요.
+
+**산출**: asos_anomaly_panel.csv 45행 → 70행 (5 시군 × 14년, 결측 0).
+
+**검증 — 시간 변동 (온난화 신호)**:
+- 보은: 5차(2008) +0.200°C → 6차(2012.5) -0.162°C → 7차(2018) +0.675°C.
+- 5개 시군 모두 5차 < 7차 (온난화 추세). 6차가 상대적 골짜기 (U자형).
+- temp_anom std: 0.494 (9년) → 0.439 (14년). 약간 감소하나 표본 수 ↑.
+
+### 결정 3: v7 채택 — R² 동일하나 안정성 2배
+
+**결과**:
+
+| 버전 | 데이터 | 표본 | R² | std |
+|---|---|---|---|---|
+| v5 | 6+7차 (시점 2) | 1369 | 0.204 | ±0.074 |
+| **v7** | **5+6+7차 (시점 3)** | **2194** | **0.204** | **±0.038** |
+
+**결정**: v7 채택. R² 동일(0.204)하나 **fold std 절반 (0.074→0.038)**,
+표본 60% 증가 (1369→2194). 더 많은 데이터로 같은 설명력 = 일반화 강건.
+
+**정직한 분석 — R² 안 오른 이유**:
+- 잔차 79.6%가 모델 외 (임분 우연성). elev 47% 공간 지배.
+- V_table 정적(2014) → 시간 보정 한계. R² 천장 ~0.2 (현 변수).
+- 5차 추가는 안정성·시계열 폭에 기여, R² 절대값엔 한계.
+
+**핵심 발견 — 차수별 잔차 단조 증가 (학술 가치)**:
+- 5차(2008) -6.1 → 6차(2012.5) -0.2 → 7차(2018) +11.7 (m³/ha).
+- 시간 ↑ → 잔차 ↑ (단조). "임분수확표 2014 대비 최근 임분축적 증가"
+  = 온난화/생장환경 변화 또는 임분 성숙 신호. 시계열 3시점으로 실증.
+
+### 산출물
+
+- `module_bd/src/diagnose/nfi5_coord_probe.py` (좌표 체계 진단)
+- `module_bd/src/diagnose/nfi5_extract.py` (영문→한글 + 수고 cm→m)
+- `module_bd/data/raw/nfi/nfi5_chungbuk_{stand,tree}.csv` (gitignore)
+- `module_bd/data/processed/asos_anomaly_panel.csv` (70행)
+
+### 한계
+
+- temp_anom std 약간 감소 (0.494→0.439) — 6차 골짜기가 분산 희석.
+- R² 절대값 미개선 (0.204 유지) — 천장은 V_table 정적성·임분 우연성.
+- 5차 수고 유효 21.2% (6/7차 표준목 패턴 동일) — SI 추정 표본 한정.
+
+### 가이드 매칭
+
+- §5.4 climate_correct 시계열 입력 확장 (시점 2 → 3).
+- §3.1 NFI 데이터 (5/6/7차 통합) 완성.
+
+### 후속
+
+- D17: SI 변수 추가 (R² 개선 시도).
+
+---
+
+## D17: SI (지위지수) 변수 추가 + measure_year ablation (Day 7, 완료)
+
+**일자**: 2026-05-28 (Day 7)
+**책임**: 정우 (모듈 B/D)
+**관련 가이드**: §5.4 climate_correct
+
+### 배경
+
+D16 (v7, R² 0.204, 시점 3) 후 "R² 더 끌어올리기" 진행. 정직한
+ablation (한 번에 변수 하나씩, v6 복합변경 실패 교훈) 으로 입지 변수
+탐색. measure_year 실패도 정직히 기록.
+
+### 결정 1: SI (지위지수) 변수 추가 — 채택
+
+**배경**: estimate_si() 가 V_table lookup 용으로 SI 를 이미 계산하나
+회귀 feature 로는 미사용 (버려짐). SI = 입지 생산력 → 잔차 설명 가능성.
+
+**결과**:
+
+| 버전 | 변수 | R² | SI 중요도 |
+|---|---|---|---|
+| v7 | 6 (anomaly 4 + elev + imsang) | 0.204 | — |
+| **v8** | **7 (+ si)** | **0.228** | **8.5%** |
+
+**결정**: SI 채택. R² +0.024 (12% 상대 향상). SI 중요도 8.5% =
+elev (42.7%) 와 별개 정보 (elev=고도 간접, si=생산력 직접). 시간 불변
+변수라 미래 예측(climate_scenario)에도 유효.
+
+**근거**:
+- 이미 계산되던 값 재활용 (rows 에 'si' 추가 + FEATURES 추가, 최소 수정).
+- v3 (변수 추가만으로 하락) 과 달리, SI 는 물리적으로 타당한 입지 변수.
+- 미래 예측 시 elev/si/imsang = 임분 고유값으로 활용 (D15 연결).
+
+### 결정 2: measure_year ablation — 효과 없음, 제거 (정직한 기록)
+
+**배경**: 차수별 잔차 단조 증가 (5차 -6.1 → 7차 +11.7, D16) 가 명확해
+measure_year 직접 변수화 시 R² 크게 오를 것으로 기대.
+
+**결과**:
+
+| 버전 | 변수 | R² | measure_year 중요도 |
+|---|---|---|---|
+| v8 | 7 | 0.228 | — |
+| v9 | 8 (+ measure_year) | 0.223 | 4.5% |
+
+**결정**: measure_year **제거**, v8 유지. R² -0.005 (효과 없음).
+
+**정직한 해석 (중요)**:
+- measure_year 추가했는데 R² 오히려 하락 + 중요도 낮음 (4.5%).
+- **원인: anomaly 변수가 이미 시간 trend 흡수**. measure_year 의 시간
+  신호 = anomaly 와 중복 → 정보 안 늘고 노이즈만 증가 (약간 과적합).
+- **이게 오히려 기후 변수 정당성 입증**: "시간 때문"이 아니라
+  "기후(anomaly) 때문"에 잔차가 변함 → climate_correct 의 학술적 정당성.
+- measure_year 가 효과 컸다면 "시간만 외운" 의심 → 효과 없음이 더 정직.
+
+### 최종 R² 발전 (전체)
+
+| 버전 | 구성 | R² | 비고 |
+|---|---|---|---|
+| v1 | 보은 산악기상 | -0.013 | 시기 미스매치 |
+| v2 | + ASOS 30y 상수 | -0.029 | anomaly 상수 |
+| v3 | + 임상 | -0.039 | 변수 추가만 |
+| v4 | 충북 5 시군 | +0.027 | 첫 양수 |
+| v5 | 6+7차 패널 | +0.204 | 시간 변동 학습 |
+| v7 | 5+6+7차 패널 | +0.204 | 시점 3, std 절반 |
+| **v8** | **+ SI** | **+0.228** | **best** |
+| v9 | + measure_year | +0.223 | 효과 없음, 제거 |
+
+### v8 변수 중요도
+
+| 변수 | 중요도 |
+|---|---|
+| elev | 42.7% |
+| prcp_anomaly_30y | 11.7% |
+| gdd_anomaly | 11.3% |
+| vpd_anomaly | 10.8% |
+| temp_anomaly_30y | 9.7% |
+| si | 8.5% |
+| imsang_code | 5.4% |
+
+### 산출물
+
+- `module_bd/src/climate_correct/fit_correct.py` (v8, 7변수)
+- `module_bd/data/processed/climate_correct.pkl` (v8, 327KB)
+
+### 한계
+
+- R² 0.228 = 잔차의 23%만 설명. 77%는 임분 우연성·V_table 정적성·
+  SI 추정 오차·우점수종 단순화 (모델 외).
+- R² 천장 ~0.23 (현 변수 구조). 추가 변수 효과 제한적 (measure_year 실증).
+
+### 가이드 매칭
+
+- §5.4 climate_correct: SI 변수로 입지 정보 보강.
+- §10.3 baseline 도 valid → 우리 R² 0.228 = 유의미한 진전.
+
+### 후속
+
+- D15: NEX-GDDP SSP 시나리오로 growth_predict 통합.
+
+---
+
+## D15: 기후 보정 통합 — NEX-GDDP SSP + 외삽 정직 감지 (Day 7, 완료)
+
+**일자**: 2026-05-28 (Day 7)
+**책임**: 정우 (모듈 B/D)
+**관련 가이드**: §5.4 climate_correct, §3.1 SSP 시나리오, §8.2 growth_predict
+
+### 배경
+
+D13~D17 로 climate_correct.pkl (v8, R² 0.228) 완성. 그러나 growth_predict()
+의 climate_scenario 는 baseline 외 미작동 (경고만). 가이드 §5.4 의
+climate_correct(v_table, scenario, ...) = V_table + residual 을 진짜 구현.
+"민석(모듈 A)에게 받지 말고 필요하면 우리가 한다" → NEX-GDDP 직접 추출.
+
+### 결정 1: 미래 기후 source — NEX-GDDP-CMIP6 직접 추출 (GEE)
+
+**결정**: GEE JavaScript Code Editor 로 NASA/GDDP-CMIP6 직접 추출.
+
+**파라미터** (가이드 §3.1 + 판단):
+- 모델: 5개 GCM 앙상블 평균 (ACCESS-CM2, MPI-ESM1-2-HR, MRI-ESM2-0,
+  NorESM2-MM, UKESM1-0-LL). 가이드 미지정 → IPCC 식 앙상블 (단일 모델
+  불확실성 회피).
+- 기간: 2021-2050 (근미래). 가이드 2021-2100 중 벌기령 의사결정 구간.
+- 시나리오: ssp245, ssp585 (NEX 제공분; ssp126 은 GEE 자산 미제공).
+  가이드 SSP1-2.6/2-4.5/5-8.5 중 245/585 충족.
+- anomaly: 미래(2021-2050) - NEX historical(1991-2020). 모델 내 차이로
+  GCM bias 상쇄.
+
+**변수 (가이드 §5.4 4개 정확히)**:
+- temp_anomaly_30y ← tas (K→°C)
+- prcp_anomaly_30y ← pr (kg/m²/s → mm/day)
+- gdd_anomaly ← tas 일평균 GDD(base 5°C) 누적
+- vpd_anomaly ← tas + hurs (상대습도) → VPD = es(1-RH/100), 연 최대
+
+**산출**: nex_gddp_chungbuk_anomaly.csv (5 시군 × 2 시나리오 = 10행).
+검증: 청주 ssp245 temp +1.39°C, ssp585 +1.65°C (IPCC 한반도 전망 일치,
+ssp585 > ssp245 모든 변수). processed/nex_scenario_anomaly.csv 로 복사.
+
+### 결정 2: growth_predict 통합 — elev/sigun 인자 추가
+
+**결정**: growth_predict() 에 elev (해발고), sigun (시군, 기본 '보은')
+인자 추가. climate_correct.pkl 의 7 feature 중 기후 4개는 NEX, 입지
+3개(elev/imsang/si)는 임분 고유값으로 구성.
+
+**보정 적용**: V_corrected = V_table + residual (climate_correct 학습 방식).
+residual 은 기후+입지만 (나이 무관) → 모든 trajectory 시점에 동일 보정.
+trajectory 에 volume(baseline) + volume_corrected + climate_residual 병기
+(산주가 기후 영향 비교 가능).
+
+### 결정 3: 외삽 정직 감지 (방법 A) — 핵심 결정
+
+**문제 발견**: SSP245 (+72.8) = SSP585 (+72.8) 동일 보정. 원인 진단:
+
+| 변수 | 학습(ASOS) 범위 | NEX 미래 | 외삽? |
+|---|---|---|---|
+| temp | -0.675 ~ +1.159 | +1.35 ~ +1.68 | **외삽 (전부 밖)** |
+| prcp | -516 ~ +871 | +68 ~ +118 | 내삽 |
+| gdd | -141 ~ +375 | +339 ~ +441 | 부분 외삽 |
+| vpd | -0.38 ~ +0.77 | +0.08 ~ +0.13 | 내삽 |
+
+**원인**: 미래 기온(NEX)이 과거 학습(ASOS) 최대 범위를 넘음 (온난화 →
+필연적). LightGBM(트리)은 외삽 구간에서 상수 출력 → SSP245/585 둘 다
+"최대 온도 잎" → 동일 보정. 트리 모델의 본질적 한계.
+
+**대안 비교**:
+
+| 방법 | 내용 | 정직성 | 채택 |
+|---|---|---|---|
+| **A** | **외삽 감지 + 경고 + 방향성 참고 명시** | **최상** | ✓ |
+| B | 선형 성분으로 SSP 구분 | 중 (구분도 외삽 가정) | |
+| C | 미래 예측 철회, baseline만 | 상 (D15 포기) | |
+| D | anomaly 정규화 (스케일) | 하 (편법) | |
+
+**결정**: 방법 A. 보정값은 제공하되, 외삽을 코드가 자동 감지하여 경고.
+"보정값은 방향성 참고용, 정확한 크기 불확실, SSP 시나리오 구분 제한적".
+
+**근거**:
+- 외삽은 모든 미래 기후 영향 예측의 본질적 한계 (온난화 = 과거 범위 초과).
+- 트리 모델 외삽 부적합 = 학계 정설.
+- "SSP245=585"를 그럴듯한 숫자로 숨기는 것이 가장 부정직.
+- 방법 B (선형)도 그 구분이 외삽 가정이라 과신 위험 — 더 정교해 보일 뿐.
+- 한계를 정확히 드러내는 것이 학술적으로 가장 떳떳 (심사 신뢰).
+
+**구현**:
+- `_load_train_anomaly_ranges()`: asos_anomaly_panel.csv 에서 변수별
+  학습 범위 런타임 계산 (학습 데이터 = 진실의 원천, pkl 재학습 불필요).
+- `_compute_climate_correction()`: NEX anomaly vs 학습 범위 변수별 비교.
+  외삽이면 변수별 명시 경고 + climate_extrapolation 플래그.
+- trajectory['climate_extrapolation'] = True/False (모듈 C/E 가 인지).
+
+### 산출물
+
+- GEE 추출 스크립트 (NEX-GDDP, 사용자 환경)
+- `module_bd/data/raw/nex/nex_gddp_chungbuk_anomaly.csv`
+- `module_bd/data/processed/nex_scenario_anomaly.csv`
+- `module_bd/src/growth_predict.py` (D15 통합: elev/sigun + 보정 + 외삽 감지)
+- 테스트 59 passed (기존 영향 0)
+
+### 한계 (정직히)
+
+- **미래 기온 외삽**: NEX temp(+1.35~1.68) > 학습 ASOS(+1.16). 트리 모델
+  외삽 → SSP245=SSP585 동일 보정(+72.8). 시나리오 구분 데이터 한계.
+- **보정값 크기 불확실**: +72.8 = 학습 범위 끝 잎의 잔차값. 방향성(온난화
+  → V 증가 경향)은 의미, 정확한 크기는 외삽이라 신뢰 낮음.
+- **나이 무관 보정**: climate_correct 는 나이 변수 없음 → 모든 시점 동일
+  보정. 실제 나이별 기후 영향 차이 단순화.
+- **해결 방향 (향후)**: 더 긴 시계열 (4/5/6/7차) 또는 미래 더 따뜻한 학습
+  데이터 확보 시 외삽 완화. 현 데이터로는 구조 완성 + 한계 명시가 정직.
+
+### 가이드 매칭
+
+- §5.4 climate_correct(v_table, scenario, future_age) = V_table + residual
+  *구현 완료*.
+- §3.1 SSP 시나리오 (NEX-GDDP-CMIP6 GEE 직접) *구현*.
+- §8.2 growth_predict climate_scenario 파라미터 *작동* (baseline + SSP).
+- §10.3 "baseline 도 valid" → 우리는 baseline + SSP 보정 + 외삽 정직 명시.
+
+### 모듈 B 완성
+
+D15 로 growth_predict() 가 성장(임분수확표) + 탄소(국립산림과학원) +
+등급분포(Weibull D14) + 기후보정(climate_correct D13-D17 + NEX D15) 통합.
+가이드 §1.2 모듈 B 책임 + §8.1 GrowthForecast 전 필드 충족.
+
+### 후속
+
+- (선택) 시각화: 차수별 잔차 추세, Weibull 곡선, SSP 보정 비교 (발표 Figure).
+- README 13/13 갱신.
+
+---
+
 ## (앞으로 추가 — 결정마다)
