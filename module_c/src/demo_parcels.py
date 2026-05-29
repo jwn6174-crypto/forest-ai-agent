@@ -32,6 +32,8 @@ SAMPLE_PARCELS: Dict[str, Dict] = {
         "geom_centroid_lon": 127.71804,
         "geom_centroid_lat": 36.50673,
         "geom_wkt": "POLYGON((127.71754 36.50623, 127.71854 36.50623, 127.71854 36.50723, 127.71754 36.50723, 127.71754 36.50623))",
+        "elev": 250,  # D123 정우 D15 NEX-GDDP — 보은읍 산간 평균 해발고
+        "sigun": "보은",  # 정우 climate_correct sigun (충북 보은)
         "volume_m3_per_ha": 173.0,
         "volume_q05": 138.0,
         "volume_q95": 208.0,
@@ -55,6 +57,8 @@ SAMPLE_PARCELS: Dict[str, Dict] = {
         "geom_centroid_lon": 127.71804,
         "geom_centroid_lat": 36.50673,
         "geom_wkt": "POLYGON((127.71704 36.50573, 127.71904 36.50573, 127.71904 36.50773, 127.71704 36.50773, 127.71704 36.50573))",
+        "elev": 250,
+        "sigun": "보은",
         "volume_m3_per_ha": 281.0,
         "volume_q05": 225.0,
         "volume_q95": 337.0,
@@ -84,6 +88,8 @@ REAL_REGISTERED_PARCELS: Dict[str, Dict] = {
         "distance_to_road_km": 1.5,  # 산외면 평균 추정
         "geom_centroid_lon": 127.73435,
         "geom_centroid_lat": 36.58411,
+        "elev": 400,  # 보은 산외면 평균 해발고 (D123)
+        "sigun": "보은",
         "volume_m3_per_ha": 240.0,  # 강원소나무 40년 SI=14 추정
         "carbon_tc_per_ha": 110.0,
         "registered_total_absorption_tco2": 8197,
@@ -107,6 +113,8 @@ REAL_REGISTERED_PARCELS: Dict[str, Dict] = {
         "distance_to_road_km": 2.0,
         "geom_centroid_lon": 127.73476,
         "geom_centroid_lat": 36.58784,
+        "elev": 420,  # 보은 산외면 원평리 (D123)
+        "sigun": "보은",
         "volume_m3_per_ha": 260.0,
         "carbon_tc_per_ha": 120.0,
         "registered_total_absorption_tco2": 63658,
@@ -127,6 +135,8 @@ REAL_REGISTERED_PARCELS: Dict[str, Dict] = {
         "distance_to_road_km": 1.8,
         "geom_centroid_lon": 127.46763,
         "geom_centroid_lat": 35.97994,
+        "elev": 350,  # 진안 용담면 추정 (D123, 보은 climate_correct 적용)
+        "sigun": "보은",  # 진안은 정우 climate_correct 외삽 영역 (충북 학습) — 외삽 limitations 자동
         "volume_m3_per_ha": 240.0,
         "carbon_tc_per_ha": 110.0,
         "registered_total_absorption_tco2": 4671,
@@ -148,6 +158,8 @@ REAL_REGISTERED_PARCELS: Dict[str, Dict] = {
         "distance_to_road_km": 2.5,
         "geom_centroid_lon": 127.52935,
         "geom_centroid_lat": 35.89841,
+        "elev": 380,  # 진안 상전면 추정
+        "sigun": "보은",  # 진안 (정우 climate 외삽 영역)
         "volume_m3_per_ha": 250.0,
         "carbon_tc_per_ha": 115.0,
         "registered_total_absorption_tco2": 18063,

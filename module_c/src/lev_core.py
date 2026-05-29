@@ -229,16 +229,58 @@ def compute_lev_single(
     )
     if T_horizon not in forecast_years:
         forecast_years.append(T_horizon)
-    growth_traj = growth_predict(species, site_index, age_now, forecast_years, climate_scenario)
 
-    # 마지막 시점의 volume·dbh — climate multiplier 적용
-    final = growth_traj[-1] if growth_traj else {"volume": 0, "dbh": 10, "carbon_uptake_rate": 0}
-    volume_per_ha_T = final["volume"] * climate_multiplier
+    # D123: 정우 D15 NEX-GDDP 풀 통합 — elev/sigun 인자 전달
+    # 정우 함수가 climate_scenario + elev 있으면 climate_correct 자동 적용
+    elev = stand.get("elev")  # m, 보은 산외면 ~400m 등
+    sigun = stand.get("sigun", "보은")  # 충북 시군
+
+    growth_traj = growth_predict(
+        species, site_index, age_now, forecast_years,
+        climate_scenario=climate_scenario,
+        elev=elev,
+        sigun=sigun,
+    )
+
+    # 마지막 시점의 volume·dbh
+    final = growth_traj[-1] if growth_traj else {
+        "volume": 0, "dbh": 10, "carbon_uptake_rate": 0,
+    }
+
+    # D123: volume_corrected (정우 D15 NEX-GDDP) 우선, fallback baseline × climate_multiplier
+    volume_base = final.get("volume") or 0
+    volume_corrected = final.get("volume_corrected")
+    if volume_corrected is not None and volume_corrected != volume_base:
+        # 정우 climate_correct 가 적용됨 (실 모델)
+        volume_per_ha_T = volume_corrected
+        climate_residual = final.get("climate_residual", 0)
+    else:
+        # Fallback: Module C 의 climate_multiplier (임종환 2020)
+        volume_per_ha_T = volume_base * climate_multiplier
+        climate_residual = 0
+
     volume_total_T = volume_per_ha_T * area_ha
-    dbh_T = final["dbh"]
+    dbh_T = final.get("dbh", 10) or 10
 
-    # 등급분포 (D14 HeuristicGD)
-    grade_dist_T = estimate_grade_distribution(dbh_T, species)
+    # D120: 정우 D14 grade_distribution 우선, fallback HeuristicGD
+    # 정우 grade_distribution 은 3 DBH 등급 → Module C 6 등급 매핑
+    jw_grade = final.get("grade_distribution")
+    if jw_grade and "소경재" in jw_grade:
+        # 정우 D14 Weibull 결과 → 6 등급 매핑 (WeibullGD 의 DBH_TO_GRADE_MAP)
+        from .grade_distribution import WeibullGD
+        result = {g: 0.0 for g in
+                  ["특용재", "1등급", "2등급", "3등급", "원주재", "원료재"]}
+        for dbh_grade in ["소경재", "중경재", "대경재"]:
+            mapping = WeibullGD.DBH_TO_GRADE_MAP.get(dbh_grade, {})
+            frac = jw_grade.get(dbh_grade, 0)
+            for grade, weight in mapping.items():
+                result[grade] += frac * weight
+        total = sum(result.values())
+        grade_dist_T = ({k: v / total for k, v in result.items()}
+                        if total > 0 else estimate_grade_distribution(dbh_T, species))
+    else:
+        # 정우 D14 미작동 (weibull_params.json 없음) → HeuristicGD
+        grade_dist_T = estimate_grade_distribution(dbh_T, species)
 
     # ─── 2. 원목 수입 ────────────────────────────────────────────
     prices_by_species = (market.get("timber_price_by_species") or {}).get(species, {})
@@ -343,15 +385,29 @@ def compute_lev_single(
         "carbon_uptake": "국립산림과학원 2003/2024 (정우 D5)",
         "cost": "표준품셈 + KOFPI 5/5 (정우 D3·D6)",
         "rotation": "별표 3 (2023-06-27)",
-        "hwp_decay": "IPCC 2019 Refinement Vol4 Ch12 (희도 D15)",
-        "ntfp": "산림청 임산물생산조사 2023 (희도 D13)",
-        "subsidies": "산림청 2025 보조사업 지침 (희도 D18)",
-        "climate": f"임종환 2020 ({climate_scenario}) (희도 D11.b)",
+        "hwp_decay": "IPCC 2019 Refinement Vol4 Ch12 (희도 D107)",
+        "ntfp": "산림청 임산물생산조사 2024 (희도 D105)",
+        "subsidies": "산림청 2025 보조사업 지침 (희도 D110)",
+        "climate": (
+            f"정우 D15 NEX-GDDP ({climate_scenario}, sigun={sigun})"
+            if HAS_MODULE_BD and climate_residual != 0
+            else f"임종환 2020 ({climate_scenario}) — D103.b/D121 fallback"
+        ),
+        "grade_distribution": (
+            "정우 D14 Weibull (NFI 7차 충북)"
+            if HAS_MODULE_BD and jw_grade
+            else "HeuristicGD (D106 fallback)"
+        ),
     }
 
     limitations = [
         f"climate_multiplier={climate_multiplier:.3f} 단일 적용 (시점별 보간 미실시)",
         "fallback mode" if not HAS_MODULE_BD else None,
+        (
+            "정우 D15 climate_correct 외삽 영역"
+            if final.get("climate_extrapolation")
+            else None
+        ),
     ]
     if cost_result.get("limitations"):
         limitations.extend(cost_result["limitations"])
