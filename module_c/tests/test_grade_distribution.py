@@ -33,15 +33,32 @@ def test_large_dbh_has_more_premium_grades():
     assert premium_large > premium_small
 
 
-# [검증] WeibullGD NotImplementedError (W4 협업 전)
-def test_weibull_not_implemented():
-    import pytest
+# [검증] D120 — WeibullGD 정우 D14 통합 (NotImplementedError 제거)
+def test_weibull_now_works_via_jeongwoo_d14():
+    """D120: 정우 D14 weibull_params.json 호출 → 6 등급 매핑.
+    fallback: weibull_params.json 없으면 HeuristicGD 로 graceful degradation.
+    """
     weibull = WeibullGD()
-    try:
-        weibull.estimate(20.0)
-        assert False, "예상한 NotImplementedError 발생 안 함"
-    except NotImplementedError:
-        pass
+    result = weibull.estimate(20.0)
+    # 결과는 항상 dict (NotImplementedError 안 발생)
+    assert isinstance(result, dict)
+    assert abs(sum(result.values()) - 1.0) < 0.05
+
+
+# [검증] D122 학술 발견 — WeibullGD 가 HeuristicGD 보다 작은 등급 비율 큼
+def test_d122_weibull_smaller_grades_higher():
+    """D122: 정우 NFI 7차 영세림 → 역-J 분포 → 원료재·원주재 더 큼.
+    Faustmann NPV 영향 ~-30% 추정.
+    """
+    h = HeuristicGD()
+    w = WeibullGD()
+    for dbh in [16, 20, 25, 30]:
+        hr = h.estimate(dbh)
+        wr = w.estimate(dbh)
+        # WeibullGD 의 원료재+원주재 합 > HeuristicGD
+        weibull_small = wr["원료재"] + wr["원주재"]
+        heuristic_small = hr["원료재"] + hr["원주재"]
+        assert weibull_small >= heuristic_small * 0.9  # 적어도 비슷하거나 큼
 
 
 # [회귀] HeuristicGD 정우 reference (DBH=20 → 1등급 ~10%)

@@ -373,3 +373,148 @@ REAL_REGISTERED_PARCELS = {
 | D117 | Module C 결과의 LLM agent prompt fragment (수범 통합 시) |
 | D26 | 발표 슬라이드 v1 구조 (W7) |
 | D27 | 논문 §1-§7 IMRaD 구조 (W7) |
+
+---
+
+## D117: 민감도 5 차원 분석 (학술 robustness)
+
+**날짜**: 2026-05-20 (산림학자·경제학자 deliberation 권고)
+
+**선택**: 5 차원 — SI ±2 / 할인율 0.04-0.07 / SSP 4 시나리오 / KAU 5 가격점 / HWP 4 case
+
+**근거**:
+- 산림학자: SI ±2 (보은 SI 14→15-16 정정), 60+년 외삽 ±40%
+- 경제학자: 할인율 0.04/0.05/0.06 + r=0.07 보조, HWP h=30년 ±10년
+- D115 KAU 핵심 — 2025-07 (8,670) → 2026-05 (19,600) WTA 돌파 시점 시연
+
+**구현**: `module_c/src/sensitivity.py` + 11 tests.
+
+---
+
+## D118: 정우 D9 임가경제 ↔ Module C D105 NTFP 통합
+
+**날짜**: 2026-05-22 (정우 5/22 commit `1cd63d1` 발견)
+
+**상황**:
+정우 D9 (5/22): 충북 임가경제조사 5년 평균 **임업소득 11,224천원/가구·년** (1,122만원).
+Module C D105: 표고 5.5M/ha (S5a), 송이 1.5M/ha (S5b) — 작목별 ha당.
+
+**선택**: Complementary 통합 (대체 X):
+- 정우 D9 → 임가 단위 baseline (전체 임업소득)
+- Module C D105 → 작목별 ha당 정밀
+- 평균 임가 면적 3-5 ha 가정: 정우 11.2M (가구) vs 표고 임가 16.5-27.5M = 1.5-2.5x
+
+**시연 가치**: 정우 D9 + D105 = 한국 임업소득 *full picture* (가구 baseline + 작목별 정밀).
+
+---
+
+## D119: Module A 통합 시점 stand_state_mock swap 가이드 (W5+)
+
+**날짜**: 2026-05-22
+
+**5 단계 절차**:
+1. 인터페이스 검증 — module_a.predict_stand() 반환 StandStateEstimate dict 키
+2. import 추가 — `stand_state_mock.py` try/except 자동 swap (코드 0 변경)
+3. 데이터 cross-check — 4 real polygon 인증·Module A·Module C **3축 triangulation**
+4. tests 갱신 — `test_real_polygons_all_compute` Module A 실 호출
+5. api_server.py 갱신 — 정우 `mock_module_a` → `module_a.predict_stand` swap
+
+**핵심**: Module C 코드 자체는 수정 없음 — fallback chain 자동 swap.
+
+**시연 가치**: Module A enhancement (requirement 아님) — Module C 단독 동작.
+
+---
+
+## D120: 정우 D14 Weibull → Module C 6 등급 매핑 (D106 강화)
+
+**날짜**: 2026-05-28 (정우 Day 7 commit `498e1e8`, `525c682`)
+
+**상황**:
+정우 5/28 D14 완성:
+- `module_bd/src/weibull_fit.py` — NFI 7차 충북 46,722 그루 scipy.stats.weibull_min (loc=6cm)
+- `module_bd/src/grade_distribution.py` — 영급 × 임상 23 그룹 + 영급 fallback 7 그룹
+- 출력: 3 DBH 등급 (소경재 6-18cm / 중경재 18-30cm / 대경재 30cm+)
+
+Module C `WeibullGD` 가 NotImplementedError 였음 → 정우 D14 호출 가능.
+
+**선택**: 정우 3 DBH 등급 → Module C 6 원목 등급 매핑
+
+| DBH 등급 (정우) | 원료재 | 원주재 | 3등급 | 2등급 | 1등급 | 특용재 |
+|---|---|---|---|---|---|---|
+| 소경재 (6-18cm) | 0.40 | 0.60 | - | - | - | - |
+| 중경재 (18-30cm) | - | 0.20 | 0.50 | 0.30 | - | - |
+| 대경재 (30cm+) | - | - | 0.10 | 0.30 | 0.50 | 0.10 |
+
+**구현** (`WeibullGD.estimate()`):
+1. DBH → 영급 추정 (age_class = (DBH*2+5 - 1) // 10 + 1)
+2. 정우 `grade_distribution(age_class, imsang=None)` 호출
+3. 3 DBH 등급 → 6 원목 등급 매핑
+4. 정규화 (합 = 1.0)
+5. fallback: weibull_params.json 없을 시 HeuristicGD (graceful)
+
+**검증** (DBH=20, 정우 영급 5):
+- 정우 출력: 소경재 60.4%, 중경재 29.1%, 대경재 10.6%
+- WeibullGD 매핑: 특용재 1.1%, 1등급 5.3%, 2등급 11.9%, 3등급 15.6%, 원주재 42.0%, 원료재 24.1%
+- HeuristicGD reference: 특용재 1%, 1등급 10%, 2등급 25%, 3등급 38%, 원주재 22%, 원료재 4%
+
+**시연 가치**: D122 학술 발견 #3 의 근거.
+
+---
+
+## D121: 정우 D15 NEX-GDDP → Module C SSP multiplier 통합 (D103.b 강화)
+
+**날짜**: 2026-05-28 (정우 Day 7 commit `3b786d8`)
+
+**상황**:
+정우 5/28 D15 완성:
+- `module_bd/src/climate_correct/` v8, R² 0.228
+- NEX-GDDP-CMIP6 GEE 직접 추출 (5 GCM 앙상블, ssp245/585, 2021-2050)
+- 청주 ssp245 +1.39°C, ssp585 +1.65°C (IPCC 한반도 전망 일치)
+
+**선택**: data source 우선순위
+- Primary: 정우 D15 climate_correct (NEX-GDDP 실측) — W5+ 통합 시점
+- Secondary: 임종환 (2020) IPCC AR6 (현재, fallback)
+
+**구현**: `climate_multiplier.py` docstring 갱신 — Primary/Secondary 명시. 정우 climate_correct.pkl 호출은 W5+.
+
+**검증**: 정우 청주 ssp585 +1.65°C → 강원소나무 -10~-25% 추정. 임종환 ssp585 0.80 = -20% — 일치.
+
+**시연 가치**: 정우 NEX-GDDP 실측 vs 임종환 추정 = *cross-validation* (robustness ↑).
+
+---
+
+## D122: 학술 발견 #3 — 영세림 등급분포 역-J 분포 (HeuristicGD vs WeibullGD)
+
+**날짜**: 2026-05-28 (D120 검증 결과)
+
+**상황**:
+DBH=30cm 비교:
+- HeuristicGD: 특용재 7%, 1등급 40%, 2등급 30%, 3등급 18% = **상위 4 등급 합 95%**
+- WeibullGD (정우 NFI 7차 충북 실측): 특용재 1.8%, 1등급 8.9%, 2등급 14.6%, 3등급 17.3% = **42.6%**
+- **차이 +123%** (상위 등급 비율)
+
+DBH=20cm 비교:
+- HeuristicGD: 원주재 22% + 원료재 4% = 26%
+- WeibullGD: 원주재 42% + 원료재 24% = 66%
+- **차이 +154%** (작은 등급 비율)
+
+**가설**:
+- (a) NFI 7차 충북 = 실제 사유림 영세림 표본 → 역-J 분포 (작은 나무 多)
+- (b) HeuristicGD = 임분 수확표 기반 → 평균값 위주
+- **영세 사유림에서 1·2등급 대경재 비율이 HeuristicGD 가정보다 *훨씬 적음***
+
+**학술 시사**:
+- D114 (carbonregistry 인증 +103%) 와 동일 패턴 — *수확표·국가통계 vs 실제 영세림 차이*
+- 산림학자 Round 1 우려와 *반대* — 휴리스틱이 *과대* 추정, Weibull (실측) 이 *현실*
+- Faustmann NPV: 1등급 (199,700원/m³) vs 원주재 (155,600원) 차이 28%, 특용재 (367,000) vs 원료재 (76,400) 5배
+- **NPV 추정값이 ~30-50% 감소 가능**
+
+**시연 가치**:
+- 발표 figure: 4 demo polygon × HeuristicGD vs WeibullGD NPV 비교
+- "정우 NFI 실측 데이터 통합으로 영세 사유림 NPV 정직성 ↑" 학술 기여
+- **학술 발견 3개** (D114·D115·D122) — 정우 module_bd 통합으로 #3 도출
+
+**한계**:
+- NFI 7차 충북 만 — 전국 일반화 X
+- WeibullGD DBH→영급 단순 추정 (species 차이 미반영)
+- 산림학자 Round 1 가설 ↔ 실측 결과 반대 → 추가 deliberation 필요
