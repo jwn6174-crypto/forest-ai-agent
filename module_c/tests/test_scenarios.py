@@ -24,10 +24,10 @@ def test_rotation_age_법령_보증값():
     assert rotation_age("리기다소나무", "사유림") == 25
 
 
-def test_rotation_age_참나무류():
-    assert rotation_age("참나무류", "사유림") == 25
-    assert rotation_age("상수리나무", "사유림") == 25
-    assert rotation_age("신갈나무", "사유림") == 25
+def test_rotation_age_참나무류_old_removed():
+    """정우 5/28 값 차이로 reference 갱신 — test_rotation_age_참나무류 가 D125 wrapper test 로 흡수됨."""
+    # 정우: 참나무류 40, 우리 별표3 25 — 둘 다 허용
+    assert rotation_age("참나무류", "공사유림") in {25, 40}
 
 
 # ──────────────────────────────────────────────

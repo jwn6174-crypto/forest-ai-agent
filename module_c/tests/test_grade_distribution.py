@@ -1,8 +1,12 @@
-"""test_grade_distribution.py — D14 Strategy 패턴."""
+"""test_grade_distribution.py — D106 Strategy 패턴 (Module C 6 등급).
+
+NOTE: 정우 module_bd 도 `grade_distribution.py` (D14, 3 DBH 등급) 보유.
+모듈명 충돌 회피 위해 명시적 module_c.src path 사용.
+"""
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from grade_distribution import (
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from module_c.src.grade_distribution import (
     estimate_grade_distribution,
     HeuristicGD, WeibullGD, GRADE_BOUNDS_CM,
 )
