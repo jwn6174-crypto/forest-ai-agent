@@ -518,3 +518,87 @@ DBH=20cm 비교:
 - NFI 7차 충북 만 — 전국 일반화 X
 - WeibullGD DBH→영급 단순 추정 (species 차이 미반영)
 - 산림학자 Round 1 가설 ↔ 실측 결과 반대 → 추가 deliberation 필요
+
+---
+
+## D123: 정우 D15 NEX-GDDP 풀 통합 — lev_core elev/sigun + climate_residual
+
+**날짜**: 2026-05-28 (정우 D15 시그니처 변경 완전 흡수)
+
+**상황**:
+D121 에서 정우 D15 reference 만 추가했으나, **정우 growth_predict 의 새 인자
+(elev, sigun) 와 새 반환 키 (volume_corrected, climate_residual, climate_extrapolation)** 미활용.
+Module C `lev_core.compute_lev_single()` 이 정우 D15 풀 효과를 못 받음.
+
+**선택**: `lev_core.py` 의 growth_predict 호출 + 결과 처리 완전 갱신:
+
+1. **인자 전달**: `growth_predict(species, SI, age, years, climate_scenario, elev, sigun)`
+   - `elev = stand.get("elev")` — None 이면 정우가 baseline 자동
+   - `sigun = stand.get("sigun", "보은")`
+
+2. **volume 우선순위**:
+   - Primary: `final.get("volume_corrected")` (정우 D15 NEX-GDDP 보정)
+   - Fallback: `final["volume"] × climate_multiplier` (임종환 2020)
+   - `climate_residual` 저장 → data_sources 명시
+
+3. **grade_distribution 우선순위**:
+   - Primary: `final.get("grade_distribution")` (정우 D14 Weibull 3 DBH 등급)
+   - 3 DBH 등급 → 6 원목 등급 매핑 (`WeibullGD.DBH_TO_GRADE_MAP`)
+   - Fallback: HeuristicGD (D106)
+
+4. **limitations 자동 추가**:
+   - `climate_extrapolation=True` → "정우 D15 climate_correct 외삽 영역"
+   - 외삽 정직 감지 (정우 D15 결정 3, "방법 A")
+
+5. **data_sources 명시**:
+   - climate: "정우 D15 NEX-GDDP (SSP245, sigun=보은)" 또는 "임종환 2020 fallback"
+   - grade_distribution: "정우 D14 Weibull (NFI 7차 충북)" 또는 "HeuristicGD fallback"
+
+**구현**: `module_c/src/lev_core.py` `compute_lev_single()` 함수.
+
+**검증** (보은 산외면 오대리, elev=400, 연장KOC T=60):
+- Baseline NPV: 216M, climate=임종환 fallback (정우 elev 미사용 시)
+- SSP245 NPV: 307M (+42% vs baseline), **정우 D15 NEX-GDDP 적용**
+- SSP585 NPV: 307M, limitations 에 "외삽 영역" 자동
+- grade_distribution: 정우 D14 Weibull (NFI 7차 충북) 자동 import 성공
+
+**한계**:
+- 진안 (전북) polygon 은 정우 climate_correct (충북 학습) 외삽 영역 — `sigun="보은"` fallback
+- 정우 climate_correct.pkl R² 0.228 (낮음) — *climate signal* 보다 *입지 효과* 가 큼
+- SSP245 vs SSP585 차이가 작음 (volume_corrected 가 residual 만 반영, 시점별 보간 X)
+
+**시연 가치**:
+- D121 (reference) → D123 (풀 통합) 발전. 정우 6 commits (5/28) 효과 자동 흡수
+- 발표 카드: "Module C 가 정우 D14·D15 즉시 활용 — 새 commit 시 코드 0 변경"
+- 학술적 추가성 — D114 (carbonregistry), D115 (KAU), D122 (영세림), **D124 (climate signal)** 가능
+
+---
+
+## D124: 학술 발견 #4 (잠재) — 정우 climate_correct vs 임종환 가정 차이
+
+**날짜**: 2026-05-28 (D123 검증 결과)
+
+**상황**:
+D123 검증 시 발견:
+- 임종환 (2020): 강원소나무 SSP585 → 0.80 (-20% 생장)
+- 정우 climate_correct (NFI 7차 패널 회귀, R² 0.228): SSP245 → **+42% NPV** (보은 오대리)
+- → **부호 정반대** (임종환 감소 vs 정우 보정 증가)
+
+**가설**:
+- (a) 정우 NFI 7차 패널 = *최근 30년 (1990-2020)* 실측 → 한반도 기온 상승이 *생장 증가* 로 작용 (특히 충북 보은 중고도)
+- (b) 임종환 (2020) = *시뮬레이션 기반* → SSP 시나리오의 *극단값* 가정
+- (c) 정우 R² 0.228 = *signal 약함* → 외삽 영역에서 위험
+
+**학술 시사**:
+- D114 (carbonregistry vs 모델 +103%) + D115 (KAU vs WTA 돌파) + D122 (영세림 역-J) + **D124 (climate signal 정반대)**
+- = **학술 발견 4개** — 정우 module_bd 와 통합으로 #3·#4 도출
+- 정책 함의: 산림청 NDC 26.7Mt 흡수 목표의 *기후 가정* 재검토 필요
+
+**시연 가치**:
+- 발표: "Module C 가 정우 D15 NEX-GDDP 흡수 → 임종환 시뮬레이션 가정과 *부호 차이* 발견"
+- 외삽 정직 감지 (정우 D15 결정 3) 로 limitations 자동 명시 — **방어 가능**
+
+**한계**:
+- 정우 R² 0.228 — 신뢰도 낮음
+- 진안 polygon 은 외삽 영역
+- 추가 deliberation 필요 (산림학자 추가 round)
