@@ -20,30 +20,45 @@ scenarios.py — 5 시나리오 T 계산 + 법정 벌기령 feasibility.
 
 from typing import Literal, Tuple
 
-# Day 6 PR merge 전 import 경로 fallback
+# 정우 D 모듈 rotation_age 시그니처 변경 흡수 (5/28 commit):
+# - 반환 dict (이전 int): {"rotation_age": int, ...}
+# - ownership: "공사유림" (이전 "사유림"), "국유림", "기업경영림"
 try:
-    from module_bd.src.legal_rotation import rotation_age
+    from module_bd.src.legal_rotation import rotation_age as _jw_rotation_age
+
+    def rotation_age(species: str, ownership: str = "공사유림") -> int:
+        """정우 dict 반환 → int 추출 wrapper (D125 호환층)."""
+        # 정우 "사유림" → "공사유림" 자동 매핑
+        if ownership == "사유림":
+            ownership = "공사유림"
+        result = _jw_rotation_age(species, ownership)
+        if isinstance(result, dict):
+            return result.get("rotation_age") or 40
+        return result or 40
 except ImportError:
 
-    def rotation_age(species: str, ownership: str = "사유림") -> int:
+    def rotation_age(species: str, ownership: str = "공사유림") -> int:
         """Fallback — 정우 module_bd 미배포 시 별표 3 룰베이스 직접 사용."""
+        # "사유림" → "공사유림" 정우 표준 매핑
+        if ownership == "사유림":
+            ownership = "공사유림"
         _RULES = {
-            "강원지방소나무": {"사유림": 40, "국유림": 60},
-            "중부지방소나무": {"사유림": 40, "국유림": 60},
-            "잣나무": {"사유림": 60, "국유림": 60},
-            "낙엽송": {"사유림": 30, "국유림": 50},
-            "리기다소나무": {"사유림": 25, "국유림": 30},
-            "삼나무": {"사유림": 30, "국유림": 50},
-            "편백": {"사유림": 40, "국유림": 60},
-            "참나무류": {"사유림": 25, "국유림": 60},
-            "상수리나무": {"사유림": 25, "국유림": 60},
-            "신갈나무": {"사유림": 25, "국유림": 60},
-            "굴참나무": {"사유림": 25, "국유림": 60},
-            "포플러류": {"사유림": 3, "국유림": 3},
-            "이태리포플러": {"사유림": 3, "국유림": 3},
-            "기타 활엽수": {"사유림": 40, "국유림": 60},
-            "자작나무": {"사유림": 40, "국유림": 60},
-            "백합나무": {"사유림": 40, "국유림": 60},
+            "강원지방소나무": {"공사유림": 40, "국유림": 60},
+            "중부지방소나무": {"공사유림": 40, "국유림": 60},
+            "잣나무": {"공사유림": 60, "국유림": 60},
+            "낙엽송": {"공사유림": 30, "국유림": 50},
+            "리기다소나무": {"공사유림": 25, "국유림": 30},
+            "삼나무": {"공사유림": 30, "국유림": 50},
+            "편백": {"공사유림": 40, "국유림": 60},
+            "참나무류": {"공사유림": 25, "국유림": 60},
+            "상수리나무": {"공사유림": 25, "국유림": 60},
+            "신갈나무": {"공사유림": 25, "국유림": 60},
+            "굴참나무": {"공사유림": 25, "국유림": 60},
+            "포플러류": {"공사유림": 3, "국유림": 3},
+            "이태리포플러": {"공사유림": 3, "국유림": 3},
+            "기타 활엽수": {"공사유림": 40, "국유림": 60},
+            "자작나무": {"공사유림": 40, "국유림": 60},
+            "백합나무": {"공사유림": 40, "국유림": 60},
         }
         return _RULES.get(species, {}).get(ownership, 40)
 

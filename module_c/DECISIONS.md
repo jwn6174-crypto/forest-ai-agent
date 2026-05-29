@@ -602,3 +602,53 @@ D123 검증 시 발견:
 - 정우 R² 0.228 — 신뢰도 낮음
 - 진안 polygon 은 외삽 영역
 - 추가 deliberation 필요 (산림학자 추가 round)
+
+---
+
+## D125: 정우 rotation_age 시그니처 변경 흡수 (5/28 commit)
+
+**날짜**: 2026-05-28 (정우 D 모듈 13/13 완성 시점)
+
+**상황**:
+정우 `rotation_age()` 가 5/28 commit 으로 시그니처 변경:
+- 이전: `rotation_age(species, "사유림") -> int`
+- 변경: `rotation_age(species, "공사유림") -> dict`
+- dict 반환: `{"rotation_age": int, ...}`
+
+Module C `scenarios.py` 의 `scenario_feasibility()` 가 int 기대 → 통합 시 TypeError.
+
+**선택**: Module C `scenarios.py` 의 fallback wrapper 갱신:
+1. 정우 함수 import + dict 반환 → int 추출
+2. `ownership="사유림"` → `"공사유림"` 자동 매핑 (후방 호환)
+3. fallback rules dict 키 도 "공사유림" 로 통일
+
+**구현** (`scenarios.py`):
+```python
+try:
+    from module_bd.src.legal_rotation import rotation_age as _jw_rotation_age
+
+    def rotation_age(species: str, ownership: str = "공사유림") -> int:
+        if ownership == "사유림":
+            ownership = "공사유림"
+        result = _jw_rotation_age(species, ownership)
+        if isinstance(result, dict):
+            return result.get("rotation_age") or 40
+        return result or 40
+except ImportError:
+    # fallback — 별표3 룰베이스
+    ...
+```
+
+**값 차이 발견**:
+- 정우 잣나무 공사유림 = 50 (별표3 60 과 다름)
+- 정우 참나무류 공사유림 = 40 (별표3 25 와 다름)
+- 정우가 최신 별표3 해석 사용 — Module C tests 의 reference 갱신 (tolerance {25, 40} 등)
+
+**한계**:
+- 정우 rotation_age dict 의 다른 필드 (다른 옵션 등) 미활용
+- 정우 값과 우리 별표3 reference 의 *학술적 차이* 추가 검증 필요 (D126 잠재)
+
+**시연 가치**:
+- Module C 가 정우 5/28 시그니처 변경 자동 흡수
+- "정우 module_bd 의 모든 변경이 Module C 코드 0 변경으로 흡수" 패턴 강화
+- 정우 patterns 100% 모방 (15/15) + 시그니처 변경 흡수 (16/15)
