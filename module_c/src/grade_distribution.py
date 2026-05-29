@@ -9,6 +9,7 @@ D14 (산림학자 + AI deliberation):
 희도 D14 결정 — 2026-05-20 Day 6 작성
 """
 
+import typing
 from abc import ABC, abstractmethod
 from typing import Dict
 
@@ -70,20 +71,74 @@ class HeuristicGD(GradeDistributionStrategy):
 
 class WeibullGD(GradeDistributionStrategy):
     """
-    Bailey & Dell (1973) Weibull-2P fit.
+    정우 D14 (2026-05-28 Day 7) Weibull-2P fit 호출.
 
-    NFI 표본점의 DBH 분포로 shape·scale 추정.
-    영급 ↔ shape·scale 회귀로 임의 임령 등급분포 산출.
+    NFI 7차 충북 46,722 그루 fit:
+    - scipy.stats.weibull_min (loc=6cm 고정)
+    - 영급 × 임상 23 그룹 + 영급 fallback 7 그룹
+    - 전체 왜도 +1.112 (역-J 분포, Weibull 교과서적 적합)
 
-    *W4 후 정우 NFI 협업 시 구현*. 현재는 NotImplementedError.
+    정우 grade_distribution(age_class, imsang, n_total_per_ha) 반환:
+    - 3 DBH 등급 (소경재 6-18cm / 중경재 18-30cm / 대경재 30cm+)
+
+    → Module C 6 원목 등급 매핑 (산림청 KFS 1-2024):
+    - 소경재 → 원료재·원주재 (말구지름 <18cm)
+    - 중경재 → 3등급·2등급 (말구지름 18-30cm 대응)
+    - 대경재 → 1등급·특용재 (말구지름 30cm+ 대응)
+
+    희도 D120 결정 — 2026-05-28 정우 D14 통합.
     """
 
     name = "WeibullGD"
 
+    # DBH → 원목 등급 매핑 (산림학자 검증, 말구지름 ≈ DBH × 0.7)
+    DBH_TO_GRADE_MAP: typing.ClassVar = {
+        "소경재": {"원료재": 0.40, "원주재": 0.60, "3등급": 0.0,
+                  "2등급": 0.0, "1등급": 0.0, "특용재": 0.0},
+        "중경재": {"원료재": 0.0, "원주재": 0.20, "3등급": 0.50,
+                  "2등급": 0.30, "1등급": 0.0, "특용재": 0.0},
+        "대경재": {"원료재": 0.0, "원주재": 0.0, "3등급": 0.10,
+                  "2등급": 0.30, "1등급": 0.50, "특용재": 0.10},
+    }
+
     def estimate(self, dbh_cm: float, species: str | None = None) -> Dict[str, float]:
-        raise NotImplementedError(
-            "WeibullGD 는 W4 정우 NFI Weibull fit 협업 후 구현. 현재는 HeuristicGD 사용."
-        )
+        """
+        정우 D14 Weibull → Module C 6 등급 매핑.
+
+        정우 함수 호출 실패 시 (weibull_params.json 없음) HeuristicGD fallback.
+        """
+        # DBH → 영급 추정 (평균 임령 → 영급 1-10)
+        # NFI 표준: 영급 = floor((age - 1) / 10) + 1
+        # DBH → age (강원소나무 SI=14 기준 근사): age ≈ DBH * 2 + 5
+        estimated_age = int(dbh_cm * 2 + 5)
+        age_class = min(max((estimated_age - 1) // 10 + 1, 1), 10)
+
+        try:
+            from module_bd.src.grade_distribution import (
+                grade_distribution as jw_grade_dist,
+            )
+            # 정우 함수: 임상 None → 영급 fallback
+            jw_result = jw_grade_dist(age_class=age_class, imsang=None,
+                                       n_total_per_ha=None)
+            props = jw_result.get("proportions", {})
+        except (ImportError, FileNotFoundError):
+            # Fallback: HeuristicGD (weibull_params.json 없음)
+            return HeuristicGD().estimate(dbh_cm, species)
+
+        # 3 DBH 등급 → 6 원목 등급 매핑
+        result = {g: 0.0 for g in
+                  ["특용재", "1등급", "2등급", "3등급", "원주재", "원료재"]}
+        for dbh_grade, dbh_frac in props.items():
+            mapping = self.DBH_TO_GRADE_MAP.get(dbh_grade, {})
+            for grade, weight in mapping.items():
+                result[grade] += dbh_frac * weight
+
+        # 정규화 (합 = 1.0)
+        total = sum(result.values())
+        if total > 0:
+            result = {k: v / total for k, v in result.items()}
+
+        return result
 
 
 # Default (HeuristicGD) — W4 후 WeibullGD 로 swap
