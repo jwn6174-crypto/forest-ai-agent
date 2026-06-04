@@ -204,4 +204,4 @@ __all__ = [
 __version__ = "1.1.0-integrated"
 __author__ = "Heedo Choi <zxsa0716@kookmin.ac.kr>"
 __decisions__ = "D101-D127 (ADR 27개)"
-__tests__ = 170  # 143 module_c + 27 통합 어댑터
+__tests__ = 160  # 19 test 파일 (통합 e2e + stand/ui adapter 포함)

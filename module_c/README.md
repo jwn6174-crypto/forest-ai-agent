@@ -1,27 +1,41 @@
-# Module C — Faustmann-Hartman LEV (희도 담당)
+# Module C — Faustmann–Hartman 경제성 분석
 
-> **다목적 산림경영 AI Agent (충북 보은 파일럿)** 의 의사결정 코어.
-> 정우 module_bd 의 7 함수 + 자체 모듈 12 = 19 src 파일.
-> **8 전문가 deliberation** 기반 학술 발견 2개 (D114 +103%·D115 KAU 돌파).
+Module C 는 다목적 산림경영 AI Agent(충북 보은 파일럿)의 의사결정 코어다.
+민석의 Module A 가 위성으로 추정한 임분 상태와 정우의 Module B·D 가 제공하는
+성장 곡선·시장 가격을 받아, 산주가 던지는 단 하나의 질문에 답한다 — **"지금
+이 숲을 어떻게 하는 것이 가장 이로운가."** 그 답을 1849년 Faustmann 의 임지
+기대가치(LEV)와 1976년 Hartman 의 비목재 가치 이론을 한국 데이터로 풀어
+계산하고, 여섯 가지 경영 시나리오의 순현재가치(NPV) 분포로 제시한다.
 
-**Lead**: 희도 (zxsa0716@kookmin.ac.kr)
-**기간**: 2026-05-19 ~ 2026-06-26 (W2 후반 ~ W7)
-**최종 마감**: 2026-06-26 (공모전 발표, 200만원 상금)
-**NRF 과제**: 한국연구재단 일반공동연구 (CLIM Lab, 임철희 교수)
+| 항목 | 내용 |
+|---|---|
+| 담당 | 희도 (zxsa0716@kookmin.ac.kr) |
+| 버전 | v1.1.0-integrated — Module A·B·C·D 통합 완료 |
+| 의사결정 기록 | ADR 27개 (D101–D127) |
+| 검증 | 통합 e2e 포함 전체 테스트 통과, ruff clean |
+| 과제 | 한국연구재단 일반공동연구 (CLIM Lab, 임철희 교수) |
+| 발표 | 2026-06-26 |
 
 ---
 
-## 🏆 학술 발견 2개
+## 학술 발견 다섯 건
 
-### D114 — carbonregistry 인증 vs Module C 모델 +103.2% 차이
-- 보은·진안 4 real 등록사업: 인증 320 tCO₂/ha/30yr vs 모델 157
-- **한국 산림탄소상쇄 인증실적의 baseline 가정 검토 필요성 첫 정량 제기**
-- 가설: (a) 회계 가정 (피크값을 평균으로) 또는 (b) 경영 후 측정 차이 — 위성 학자 (b) 압도적
+Module C 는 네 모듈을 통합하는 과정에서 다섯 건의 학술적 발견을 정리했다.
+그중 세 건(D114·D122·D126)은 하나의 일관된 가설로 수렴한다 — **한국 산림 탄소·
+바이오매스 추정에는 방법마다 체계적 편향이 있다.**
 
-### D115 — KAU 16개월 +126%, WTA 17,039원 역사적 첫 돌파 (2026-03~05) ⭐ 발표 핵심
-- 2025-07 (8,670원, 저점) → 2026-05 (19,600원, +126%)
-- **한국 ETS 시장 역사상 처음 WTA 돌파** — 사유림 산주 자발적 KOC 참여 *경제적 합리성* 시점 발견
-- 정책학자 D109 의 "노령림 정책 갈등" 해소 가능 시점
+| ID | 발견 | 의미 |
+|---|---|---|
+| **D114** | 산림탄소상쇄 인증실적(320 tCO₂/ha/30yr)이 자연 성장 모델(157)보다 **+103%** 높다 | 인증제도 baseline 가정 검토 필요성을 처음으로 정량화 |
+| **D115** | KAU 배출권이 16개월간 +126% 올라, 산주 의향가격(WTA 17,039원)을 2026년 3~5월 사이 **역사상 처음 돌파** | 자발적 탄소상쇄 참여가 경제적으로 합리적이 된 시점 — 발표 핵심 |
+| **D122** | 국가 수확표 등급분포가 NFI 실측보다 상위 등급을 **+123%** 과대평가 | 영세 사유림 NPV 가 가정보다 낮을 수 있음 |
+| **D124** | 정우 기후 보정과 임종환 시뮬레이션의 생장 부호가 **정반대** | 모델 간 불일치를 정직하게 노출 |
+| **D126** | 위성 GEDI 가 고밀도 침엽수림을 과소추정(NFI 외부검증 **R²=-0.187**) | 인증=과대, 수확표=과대, 위성=과소 → 3축 교차검증 근거 |
+
+세 추정 방법의 편향이 서로 반대 방향이라는 점이 핵심이다. 보은 산외면 오대리
+(25.6 ha, 인증 8,197 tCO₂)에서 인증을 상한으로, 자연 성장 모델을 하한으로,
+위성 추정을 제3의 독립 측정으로 배치하면, +103% 차이의 원인이 인증의 회계
+가정인지 실제 경영 효과인지를 판별할 수 있다.
 
 ---
 
@@ -36,6 +50,42 @@ package = compute_lev_with_plan(stand, user_preference="균형")
 # → {results, pareto, three_representative, draft_plan}
 #    6 시나리오 × Monte Carlo 300 LHS samples × Pareto + DraftPlanCard
 ```
+
+---
+
+## 통합 파이프라인 — 위성에서 산주 화면까지
+
+사용자가 필지번호(PNU)를 입력하면, 분석 결과는 네 모듈을 거쳐 ui 화면에 닿는다.
+Module C 는 그 중심에서 위성 추정과 화면 사이를 잇되, 두 모듈을 직접 import 하지
+않고 얇은 어댑터 두 개로만 결합한다(느슨한 결합).
+
+```
+사용자 PNU 입력  ──▶  api_server.py  POST /analyze
+                          │
+   Module A predict_stand()  ──▶  forest_state (위성 임분 상태)
+   Module B growth_predict()      ──▶  성장 곡선 + 등급분포(Weibull) + 기후 보정
+   Module D market_snapshot()     ──▶  KOFPI 목재가 · KAU 배출권가
+                          │
+   stand_adapter.from_forest_state()       ← ① 입력 변환 (15키 stand dict)
+                          │
+   compute_lev_with_plan()                 ← ② Module C 경제성 분석
+       6 시나리오 × Monte Carlo(LHS) → NPV · Pareto · 추천 카드
+                          │
+   ui_adapter.to_ui_scenarios()            ← ③ 출력 변환 (ui Scenario[])
+                          │
+   ui  ScenarioTable · NPVChart · ParetoChart · ChatPanel
+```
+
+이 흐름 전체가 `test_integration_e2e.py` 로 검증된다. 통합 코드는
+[`docs/integration/api_server_integration.md`](docs/integration/api_server_integration.md)
+에 정확한 교체 코드로 정리해 두었다.
+
+**어댑터 두 개**
+
+| 어댑터 | 역할 |
+|---|---|
+| `src/stand_adapter.py` | Module A 위성 추정(StandStateEstimate)을 Module C 입력 dict 로 변환. 수종명을 정우 정식명으로 역매핑하고, 경제성에 필요한 입지 변수 7개를 보완한다. **위성의 실측 분산(volume_q05/q95)이 Monte Carlo 의 임의 ±20% 가정을 대체** — 불확실성이 "가정"에서 "측정"으로 격상된다. |
+| `src/ui_adapter.py` | Module C 결과를 수범의 ui `Scenario[]` 로 변환. 한국어 식별자를 영어로, 원을 만원으로 바꾸고, Monte Carlo 분포에서 파산확률을, 사업유형 매칭에서 KOC 적격을 계산한다. |
 
 ---
 

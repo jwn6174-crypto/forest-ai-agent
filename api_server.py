@@ -32,6 +32,10 @@ sys.path.insert(0, str(ROOT))
 from module_bd.src.growth_predict import growth_predict
 from module_bd.src.market_snapshot import market_snapshot
 
+# Module C — Faustmann-Hartman 경제성 분석 (희도 D127 통합)
+from module_c.src import stand_adapter, ui_adapter
+from module_c.src.compute_lev import compute_lev_with_plan
+
 app = FastAPI(title="MOFOM AI Bridge", version="1.0.0")
 
 app.add_middleware(
@@ -107,6 +111,7 @@ def estimate_grade_dist(dbh_cm: float) -> dict:
 
 class AnalyzeRequest(BaseModel):
     pnu: str
+    riskPreference: str = "balanced"  # safe | balanced | profit (ui 위험 선호)
 
 
 # ─── /analyze ─────────────────────────────────────────────────────────────────
@@ -256,12 +261,37 @@ async def analyze(req: AnalyzeRequest):
         ),
     }
 
-    # ── Module C: 시나리오 NPV — 미구현 ──────────────────────────────────────
-    # Module C 개발 완료 후 아래를 교체:
-    #   scenarios = module_c.compute_scenarios(forest_state, growth_forecast, market_data)
-    #   recommendation = module_c.recommend(scenarios)
-    scenarios     = None   # Module C 미구현
-    recommendation = None  # Module C 미구현
+    # ── Module C: 시나리오 NPV — 통합 완료 (희도 D127) ───────────────────────
+    # forest_state(Module A·B) → Module C → ui Scenario[] 의 흐름을 잇는다.
+    # Module C 오류 시에도 A·B·D 결과는 보존한다(graceful degradation).
+    _PREF_MAP = {"safe": "위험회피", "balanced": "균형", "profit": "수익극대화"}
+    user_pref = _PREF_MAP.get(req.riskPreference, "균형")
+
+    try:
+        # forest_state(camelCase) → Module C stand dict(snake_case, 15키)
+        stand = stand_adapter.from_forest_state(forest_state)
+
+        # 6 시나리오 × Monte Carlo(LHS 300) → NPV·Pareto·추천 카드
+        package = compute_lev_with_plan(
+            stand,
+            n_samples=300,
+            user_preference=user_pref,
+        )
+
+        # Module C 결과 → ui Scenario[] 형식
+        scenarios      = ui_adapter.to_ui_scenarios(package, age_now=age_now)
+        recommendation = ui_adapter.to_ui_recommendation(package)
+
+        # 8 사업유형 정밀 매칭 → offsetEligibility 교체(Module A baselineCarbon 결합)
+        offset_from_c = ui_adapter.to_ui_offset_eligibility(package)
+        offset_from_c["baselineCarbon"] = stored_co2_per_ha * area_ha
+        offset_eligibility = offset_from_c
+
+    except Exception as e:
+        # Module C 가 실패해도 위성·성장·시장 결과는 그대로 반환
+        print(f"[Module C] 경제성 분석 오류 — scenarios 생략: {e}")
+        scenarios     = None
+        recommendation = None
 
     return {
         "pnu":               pnu,

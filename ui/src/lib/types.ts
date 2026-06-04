@@ -48,7 +48,7 @@ export interface GrowthForecast {
 
 // Module C 출력: 시나리오별 LEV/NPV
 export interface Scenario {
-  id: "immediate" | "five_year" | "ten_year" | "koc" | "ntfp";
+  id: "immediate" | "five_year" | "ten_year" | "koc" | "ntfp" | "thinning";
   name: string;
   description: string;
   harvestYear: number | null;

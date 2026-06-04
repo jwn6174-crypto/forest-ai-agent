@@ -136,7 +136,7 @@ def create_draft_plan(
         npv_q05,
         npv_q95,
         has_satellite_data=stand.get("confidence_level") != "low",
-        has_nfi_match=stand.get("confidence_note", "").startswith("NFI"),
+        has_nfi_match=(stand.get("confidence_note") or "").startswith("NFI"),
         species=species,
     )
 

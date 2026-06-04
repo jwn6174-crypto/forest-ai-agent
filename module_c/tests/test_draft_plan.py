@@ -73,6 +73,15 @@ def test_preference_risk_averse():
     assert card["user_preference"] == "위험회피"
 
 
+# [회귀] D127 통합 — confidence_note=None 이어도 죽지 않음
+def test_confidence_note_none_safe():
+    """from_forest_state 가 dataWarning=None → confidence_note=None 을 넘겨도
+    draft_plan 의 .startswith 호출이 안전해야 한다 (통합 검증에서 발견된 버그)."""
+    stand = {**_stand(), "confidence_note": None}
+    card = create_draft_plan(stand, _results(), legal_min_age=40)
+    assert card["recommended_scenario"]  # 정상 생성
+
+
 if __name__ == "__main__":
     funcs = [v for k, v in globals().items() if k.startswith("test_") and callable(v)]
     passed = 0
