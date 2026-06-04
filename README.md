@@ -4,8 +4,8 @@
 > 산주가 자연어로 묻는 *산림 경영 의사결정* 을 AI 가 *데이터+방법론* 기반으로 답변
 
 **기간:** 2026-05-12 ~ 진행 중
-**현재 상태:** Day 7 완료 — 모듈 B/D 책임 13/13 완성 (climate_correct v8 R² 0.228 + 등급분포 Weibull + NEX-GDDP SSP 통합)
-**자산:** 78+ commits · 17 DECISIONS · 5/5 진짜 PDF 데이터 · 단위 테스트 59개 · ASOS 5 시군 30년 평년 (55MB) · NFI 5/6/7차 시계열
+**현재 상태:** Module A·B·C·D 통합 완료 — 위성에서 산주 화면까지 단일 파이프라인 연결
+**자산:** 5개 모듈 · 5/5 진짜 데이터 · 학술 발견 5건 · 8 전문가 심의 2회 · 통합 e2e 테스트 통과
 
 ---
 
@@ -27,21 +27,25 @@
 
 | 모듈 | 담당자 | 역할 | 상태 |
 |---|---|---|---|
-| **A** | 민석 | 위성 데이터 (Google Earth Engine), NFI 표본점 수집 | ⏳ 미시작 |
-| **B** | 정우 | 임분 성장 예측 + 탄소 + 등급분포 + 기후 보정 | ✅ **13/13 완성** |
-| **C** | 희도 | Faustmann NPV 계산 | 🔄 진행 중 |
+| **A** | 민석 | 위성 AGB 추정 (Quantile Random Forest, GEDI 라이다 라벨) | ✅ **완성** |
+| **B** | 정우 | 임분 성장 예측 + 탄소 + 등급분포 + 기후 보정 | ✅ **완성** |
+| **C** | 희도 | Faustmann–Hartman 경제성 분석 + 통합 어댑터 | ✅ **완성** |
 | **D** | 정우 | 원목 시장가격 + 법령 + 비용 + RAG | ✅ **완성** |
-| **E** | 하수범 | Streamlit + LLM 에이전트 | 🔄 진행 중 |
+| **E** | 하수범 | Next.js UI + LLM 에이전트 | 🔄 진행 중 |
 
-> 모듈 B/D 는 NFI 5/6/7차 실측 데이터를 직접 추출하여 climate_correct() 회귀
-> 학습 + NEX-GDDP SSP 시나리오 통합 완료 (Day 7). 모듈 A 위성 GEE 작업은
-> 별도 세션 진행 예정 (NFI 좌표는 추출 완료).
+네 모듈 A·B·C·D 가 모두 완성되어, 위성 영상에서 산주 화면까지 하나의
+파이프라인으로 연결되었다. Module C 의 두 어댑터(`stand_adapter`·`ui_adapter`)가
+모듈 사이를 잇고, `api_server.py` 가 이를 묶어 ui 로 내보낸다. 남은 작업은
+수범의 UI 컴포넌트 마무리뿐이다.
 
 ---
 
 ## 📂 모듈별 상세 문서
 
-- [**모듈 B/D — 성장 예측 + 시장·정책**](module_bd/README.md) ⭐ (정우 작업)
+- [**모듈 A — 위성 AGB 추정**](module_a/README.md) (민석 작업)
+- [**모듈 B/D — 성장 예측 + 시장·정책**](module_bd/README.md) (정우 작업)
+- [**모듈 C — Faustmann–Hartman 경제성 분석**](module_c/README.md) (희도 작업, 학술 발견 5건 + 통합 어댑터)
+- [**통합 가이드 — api_server 연결**](module_c/docs/integration/api_server_integration.md) (정우·수범 전달용)
 
 ---
 
