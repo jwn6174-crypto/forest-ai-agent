@@ -196,16 +196,59 @@ AGB → 탄소량: `C = AGB × (1 + R) × CF`
 ## 파일 구조
 
 ```
-데이터/
-├── boeun_gedi_training_clean.csv   # 학습 데이터 (11,026개)
-├── qrf_model.pkl                   # 학습된 QRF 모델
-├── boeun_satellite_features_10m.tif # 위성 피처 raster (25밴드, 10m)
-├── boeun_agb_10m.tif               # AGB 예측 raster (q05/q50/q95)
-├── nfi_boeun_holdout.csv           # NFI 외부 검증 데이터
-└── fig1_gedi_scatter.png           # Fig 1
-    fig2_nfi_validation.png         # Fig 2
-    fig3_agb_map.png                # Fig 3
+module_a/
+├── __init__.py
+├── predict_stand.py                 # 팀원 import용 핵심 함수
+├── module_a_agb_nowcasting.py       # 전체 파이프라인 스크립트
+├── module_a_agb_nowcasting.ipynb    # 전체 과정 기록 (심사용)
+├── README.md
+└── data/
+    ├── boeun_gedi_training_clean.csv    # 학습 데이터 (11,026개) ✅ repo 포함
+    ├── boeun_boundary_wgs84.geojson     # 보은군 경계 ✅ repo 포함
+    ├── nfi_boeun_satellite_features.csv # NFI 위성 피처 ✅ repo 포함
+    ├── fig1_performance.png             # Fig 1 ✅ repo 포함
+    ├── fig2_nfi_validation.png          # Fig 2 ✅ repo 포함
+    ├── fig3_agb_map.png                 # Fig 3 ✅ repo 포함
+    ├── qrf_model.pkl                    # ❌ repo 미포함 → Step 6 실행 시 자동 생성
+    └── boeun_satellite_features_10m.tif # ❌ repo 미포함 → Step 3 실행 시 GEE export
 ```
+
+---
+
+## ⚙️ 로컬 파일 생성 안내
+
+### qrf_model.pkl (148MB — repo 미포함)
+```bash
+conda activate forest
+python module_a_agb_nowcasting.py --step 6
+# 실행 완료 후 data/qrf_model.pkl 자동 생성
+```
+
+### boeun_satellite_features_10m.tif (541MB — repo 미포함)
+GEE export 파일로 직접 생성 필요:
+```bash
+python module_a_agb_nowcasting.py --step 3
+# GEE Tasks 완료 후 구글드라이브 → GEE_exports 폴더에서 다운로드
+# → data/boeun_satellite_features_10m.tif 에 저장
+```
+> ⚠️ **predict_stand() 는 raster 없어도 동작함**
+> raster 파일이 없으면 confidence='low' 로 학습 데이터 평균값 기반 예측
+
+---
+
+## 🔗 수종명 표기 (Module B/D 연동)
+
+`predict_stand()` 는 다양한 수종명 표기를 자동으로 정규화합니다:
+
+```python
+# 아래 표기 모두 동작
+predict_stand(..., species_dominant="신갈나무")   # full name
+predict_stand(..., species_dominant="신갈")       # short name
+predict_stand(..., species_dominant="일본잎갈나무") # → 낙엽송으로 자동 매핑
+predict_stand(..., species_dominant="침엽수림")   # 임상명도 가능
+```
+
+지원 수종명 전체 목록은 `predict_stand.py` 의 `SPECIES_NAME_MAP` 참조
 
 ---
 
@@ -230,24 +273,3 @@ GEE 프로젝트: constant-goods-461116-r4
 ---
 
 *Module A — 위성 AGB Nowcasting | 2026 다목적 산림경영 AI Agent 공모전*
-
-
----
-
-## ⚙️ 모델 파일 생성 안내
-
-`qrf_model.pkl` 파일은 용량(148MB)으로 인해 깃허브에 포함되지 않습니다.  
-아래 순서로 로컬에서 직접 생성하세요:
-
-```bash
-# 1. 환경 활성화
-conda activate forest
-
-# 2. 전체 파이프라인 실행 (Step 6에서 자동 생성)
-python module_a_agb_nowcasting.py --step 6
-
-# 또는 전체 실행
-python module_a_agb_nowcasting.py --step all
-```
-
-실행 완료 후 `data/qrf_model.pkl` 이 자동으로 생성됩니다.
