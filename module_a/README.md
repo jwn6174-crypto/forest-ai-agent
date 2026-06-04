@@ -230,3 +230,24 @@ GEE 프로젝트: constant-goods-461116-r4
 ---
 
 *Module A — 위성 AGB Nowcasting | 2026 다목적 산림경영 AI Agent 공모전*
+
+
+---
+
+## ⚙️ 모델 파일 생성 안내
+
+`qrf_model.pkl` 파일은 용량(148MB)으로 인해 깃허브에 포함되지 않습니다.  
+아래 순서로 로컬에서 직접 생성하세요:
+
+```bash
+# 1. 환경 활성화
+conda activate forest
+
+# 2. 전체 파이프라인 실행 (Step 6에서 자동 생성)
+python module_a_agb_nowcasting.py --step 6
+
+# 또는 전체 실행
+python module_a_agb_nowcasting.py --step all
+```
+
+실행 완료 후 `data/qrf_model.pkl` 이 자동으로 생성됩니다.
