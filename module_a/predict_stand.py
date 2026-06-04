@@ -44,6 +44,62 @@ FEATURES_NO_DEM = [
 DEM_FEATURES = ['elev', 'slope', 'northness', 'eastness']
 FEATURES_ALL = FEATURES_NO_DEM + DEM_FEATURES
 
+# ── 수종명 표기 통일 매핑 (Module B/D 호환) ──────────────────
+# Module B/D에서 "신갈나무", "굴참나무" 등 full name으로 넘겨도 동작
+SPECIES_NAME_MAP: Dict[str, str] = {
+    # 침엽수
+    "소나무":        "중부소나무",
+    "강원도소나무":  "강원소나무",
+    "잣나무":        "잣나무",
+    "낙엽송":        "낙엽송",
+    "일본잎갈나무":  "낙엽송",
+    "리기다소나무":  "리기다",
+    "리기다":        "리기다",
+    "곰솔":          "기본침엽",
+    "전나무":        "기본침엽",
+    "편백":          "편백",
+    # 활엽수
+    "신갈나무":      "신갈",
+    "신갈":          "신갈",
+    "굴참나무":      "굴참",
+    "굴참":          "굴참",
+    "상수리나무":    "상수리",
+    "상수리":        "상수리",
+    "졸참나무":      "굴참",
+    "밤나무":        "기본활엽",
+    "자작나무":      "자작",
+    "자작":          "자작",
+    "백합나무":      "백합",
+    "백합":          "백합",
+    "아까시나무":    "기본활엽",
+    "포플러":        "기본활엽",
+    # 임상 기반 (임상도에서 수종 대신 임상명이 올 경우)
+    "침엽수림":      "기본침엽",
+    "활엽수림":      "기본활엽",
+    "혼효림":        "기본활엽",
+    # 기본값
+    "기본침엽":      "기본침엽",
+    "기본활엽":      "기본활엽",
+}
+
+def normalize_species(species: str) -> str:
+    """
+    수종명 표기 정규화
+    Module B/D에서 넘어오는 다양한 표기를 SPECIES_PARAMS 키로 변환
+    예) "신갈나무" → "신갈", "일본잎갈나무" → "낙엽송"
+    """
+    if species in SPECIES_PARAMS:
+        return species
+    mapped = SPECIES_NAME_MAP.get(species)
+    if mapped:
+        return mapped
+    # 부분 매칭 (예: "소나무류" → "중부소나무")
+    for key, val in SPECIES_NAME_MAP.items():
+        if key in species:
+            return val
+    return "기본활엽"  # fallback
+
+
 # ── 산림과학원 바이오매스 변환 계수 ──────────────────────────
 SPECIES_PARAMS: Dict[str, Dict] = {
     "잣나무":    {"D": 0.41, "BEF": 1.35, "R": 0.28, "CF": 0.49},
@@ -279,10 +335,10 @@ def predict_stand(
             confidence = "low"
             note       = f"유효 픽셀 {n_pixels:,}개 (소수 픽셀)"
 
-    # 4. 수종 키 확인
-    sp_key = (species_dominant
-              if species_dominant in SPECIES_PARAMS
-              else "기본활엽")
+    # 4. 수종 키 정규화 (Module B/D 호환 — 어떤 표기로 넘겨도 동작)
+    # 예) "신갈나무" → "신갈", "일본잎갈나무" → "낙엽송"
+    sp_key = normalize_species(species_dominant)
+    sp_key_sec = normalize_species(species_secondary) if species_secondary else None
 
     # 5. AGB → 입목축적 / 탄소량 변환
     vol_med  = _agb_to_volume(agb_med,  sp_key)
@@ -292,9 +348,9 @@ def predict_stand(
     carb_q05 = _agb_to_carbon(agb_q05,  sp_key)
     carb_q95 = _agb_to_carbon(agb_q95,  sp_key)
 
-    # 6. Saturation 경고 (GEDI 포화 구간)
+    # 6. Saturation 경고 (GEDI 포화 구간, 정규화된 sp_key 기준)
     _conifers  = ["잣나무","낙엽송","강원소나무","중부소나무","리기다","기본침엽"]
-    sat_warn   = (agb_med > 130) and (species_dominant in _conifers)
+    sat_warn   = (agb_med > 130) and (sp_key in _conifers)
 
     return StandStateEstimate(
         pnu               = pnu,
