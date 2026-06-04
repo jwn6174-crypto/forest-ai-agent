@@ -144,3 +144,17 @@ dist/
 
 # climate_correct 모델 자산 (R² +0.204 best)
 !module_bd/data/processed/climate_correct.pkl
+# ===== Module A 학술 자산 명시적 허용 =====
+!module_a/data/boeun_gedi_training_clean.csv
+!module_a/data/boeun_boundary_wgs84.geojson
+!module_a/data/nfi_boeun_satellite_features.csv
+!module_a/data/fig1_performance.png
+!module_a/data/fig2_nfi_validation.png
+!module_a/data/fig3_agb_map.png
+
+# module_a 대용량 제외 (Git LFS 또는 제외)
+module_a/data/*.tif
+module_a/data/*.gpkg
+module_a/data/mdb_NFI_*.xlsx
+module_a/data/imsangdo2024.gpkg
+module_a/data/qrf_model.pkl
