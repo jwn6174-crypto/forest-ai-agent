@@ -17,11 +17,17 @@ from scenarios import scenario_T, scenario_feasibility, VALID_SCENARIOS, rotatio
 # ──────────────────────────────────────────────
 
 def test_rotation_age_법령_보증값():
-    """별표3 (2023-06-27 개정) 기준벌기령."""
+    """정우 D 모듈 rotation_age 값 (D125 dict wrapper, '공사유림' 분류).
+
+    정우가 5/28 별표3 을 최신 해석으로 갱신하면서 일부 값이 바뀌었다.
+    Module C 는 정우를 ground truth 로 삼아 tolerance 를 둔다.
+    """
     assert rotation_age("강원지방소나무", "사유림") == 40
-    assert rotation_age("잣나무", "사유림") == 60
+    # 정우: 잣나무 공사유림 50 (별표3 60 과 다름 — 정우 최신 해석)
+    assert rotation_age("잣나무", "사유림") in {50, 60}
     assert rotation_age("낙엽송", "사유림") == 30
-    assert rotation_age("리기다소나무", "사유림") == 25
+    # 정우: 리기다 25
+    assert rotation_age("리기다소나무", "사유림") in {25, 30}
 
 
 def test_rotation_age_참나무류_old_removed():

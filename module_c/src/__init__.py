@@ -106,10 +106,16 @@ from .scenarios import (
     scenario_feasibility,
     scenario_T,
 )
+from .stand_adapter import from_forest_state, from_module_a
 from .subsidies import (
     lookup_reforestation_subsidy,
     lookup_subsidy,
     lookup_thinning_revenue,
+)
+from .ui_adapter import (
+    to_ui_offset_eligibility,
+    to_ui_recommendation,
+    to_ui_scenarios,
 )
 from .uncertainty import (
     classify_uncertainty,
@@ -158,6 +164,9 @@ __all__ = [
     "fetch_kau_price",
     "find_eligible_project_types",
     "format_kau_breakeven_message",
+    # 통합 어댑터 (D127) — Module A·ui 연결
+    "from_forest_state",
+    "from_module_a",
     "generate_kakao_message",
     "get_climate_multiplier",
     "get_demo_parcel",
@@ -183,13 +192,16 @@ __all__ = [
     "search_rag_citations",
     "select_three_representative",
     "summary_validation_report",
+    "to_ui_offset_eligibility",
+    "to_ui_recommendation",
+    "to_ui_scenarios",
     "validate_all_real_cases",
     "vworld_address_to_coord",
     "vworld_pnu_to_geometry",
 ]
 
 
-__version__ = "1.0.0-day6"
+__version__ = "1.1.0-integrated"
 __author__ = "Heedo Choi <zxsa0716@kookmin.ac.kr>"
-__decisions__ = "D9-D24 (ADR 13개)"
-__tests__ = 129  # pytest 1.81s
+__decisions__ = "D101-D127 (ADR 27개)"
+__tests__ = 170  # 143 module_c + 27 통합 어댑터
