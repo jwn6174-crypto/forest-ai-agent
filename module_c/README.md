@@ -114,7 +114,7 @@ module_c/
 │   ├── compute_lev.py          # ⭐ 진입점
 │   ├── data_go_kr_api.py       # 산림자원통계 + KAU + VWorld
 │   └── validation.py           # D114 모델 vs 인증 비교
-├── tests/                  (16 파일 + fixtures, 129 tests)
+├── tests/                  (19 파일 + fixtures, 160 tests)
 ├── scripts/
 │   └── test_keys.py            # 6 API sanity check
 ├── data/
@@ -201,35 +201,39 @@ VWorld 실 좌표 확보: 보은 산외면 오대리 lon=127.7344, lat=36.5841
 
 ---
 
-## 단위 테스트 — 129 tests (정우 45 의 2.8배)
+## 단위 테스트 — module_c 160 + shared 15 = 175 (module_bd 59 포함 전체 234)
 
 ```
 shared/test_schemas.py             15  (가이드 §4.1 + 옵션 P2 확장)
-module_c/tests/
+module_c/tests/  (19 파일, 160 tests)
+  test_stand_adapter.py            14  (Module A→C 어댑터, D127)
   test_scenarios.py                13
-  test_hwp_decay.py                 7  (IPCC 2019 reference)
-  test_climate_multiplier.py        7  (임종환 2020 reference)
-  test_subsidies.py                 8  (산림청 2025 단가)
-  test_kau_breakeven.py             6  (D115 161원/2561원)
-  test_grade_distribution.py        7  (Strategy 패턴)
-  test_uncertainty.py               7  (tier 자동 판정)
-  test_ntfp_income.py               7  (2024 보고서 reference)
+  test_ui_adapter.py               13  (C→ui 어댑터, D127)
+  test_sensitivity.py              12  (5 차원 robustness)
   test_lev_core.py                 10  (Faustmann 본체 + 6 시나리오)
   test_compute_lev.py               8  (진입점 + 6 시나리오 dispatch)
-  test_pareto.py                    6  (Hartman 정통)
-  test_recommend.py                 7
+  test_draft_plan.py                8  (이중 표현)
+  test_grade_distribution.py        8  (Strategy 패턴)
+  test_subsidies.py                 8  (산림청 2025 단가)
+  test_climate_multiplier.py        7  (임종환 2020 reference)
+  test_hwp_decay.py                 7  (IPCC 2019 reference)
+  test_ntfp_income.py               7  (2024 보고서 reference)
   test_offset_eligibility.py        7  (8 사업유형)
-  test_draft_plan.py                7  (이중 표현)
+  test_recommend.py                 7
+  test_uncertainty.py               7  (tier 자동 판정)
   test_validation.py                7  (D114 +45% reference)
+  test_kau_breakeven.py             6  (D115 margin)
+  test_pareto.py                    6  (Hartman 정통)
+  test_integration_e2e.py           5  (A·B·C·D·ui 전체 파이프라인)
 ─────────────────────────────────────
-                                   총 129 tests
+        module_c 160 + shared 15 = 175  (+ module_bd 59 = 전체 234)
 ```
 
 **정우 패턴 100% 모방**: `_base()` fixture + [검증] D{n} reference + [회귀] 출력 기준선.
 
 ---
 
-## DECISIONS ADR 13개 (D9-D116)
+## DECISIONS ADR (D101-D132, 핵심 발췌)
 
 | ID | 결정 | 근거 |
 |---|---|---|
@@ -277,7 +281,7 @@ package = compute_lev_with_plan(stand, user_preference="균형", n_samples=300)
 | PR | 범위 | 라인 | 상태 |
 |---|---|---|---|
 | PR 1 | `shared/schemas.py` + 15 tests (D9) | +380 | ✅ Ready |
-| PR 2 | `module_c/` 첫 commit (19 src + 8 data + 129 tests) | ~6,500 | ✅ Ready |
+| PR 2 | `module_c/` 첫 commit (19 src + 8 data + 160 tests) | ~6,500 | ✅ Ready |
 | PR 3 | (선택) GEDI+S2 triangulation Plan B (Round 2 위성 학자) | ~500 | ⏳ W4-5 선택 |
 | PR 4 | `api_server.py` 통합 (`/compute_lev`) | ~80 | ⏳ W5 |
 
@@ -293,7 +297,7 @@ package = compute_lev_with_plan(stand, user_preference="균형", n_samples=300)
 3. Method: Faustmann-Hartman 한국 변형 + 8 학자 deliberation
 4. **Finding A: D115 KAU 변곡점** ⭐ 핵심 narrative
 5. Finding B: D114 인증-모델 +45% gap
-6. Validation: NFI direct lookup + 129 tests + Module A framing
+6. Validation: NFI direct lookup + 175 tests + Module A framing
 7. Conclusion + 정책 제언
 
 ---
