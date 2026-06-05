@@ -129,7 +129,7 @@ class LEVResult(BaseModel):
 
     # 경제학자 권고: KAU breakeven
     kau_breakeven: Optional[float] = None  # 이 시나리오의 KAU 임계가 (원/tCO₂)
-    kau_breakeven_note: Optional[str] = None  # "KAU 17,200 → 16,300 이하 시 LEV 음수"
+    kau_breakeven_note: Optional[str] = None  # "KAU 15,550 → 16,300 이하 시 LEV 음수"
 
 
 # 산림학자 권고: SSP 기후 multiplier

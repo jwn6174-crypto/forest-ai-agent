@@ -85,16 +85,16 @@
 
 ## 3. ⭐ 학술 발견 4개 × Module A 연계 매트릭스 (핵심 설계)
 
-### D114 — carbonregistry 인증 +103% → **3축 triangulation 으로 강화**
+### D114 — carbonregistry 인증 +45% → **3축 triangulation 으로 강화**
 
 | | 현재 (Module A 없음) | Module A 완성 후 |
 |---|---|---|
 | 축 1 | carbonregistry 인증: 320 tCO₂/ha/30yr | (동일) |
-| 축 2 | Module C 모델 (자연 성장): 157 | (동일) |
+| 축 2 | Module C 모델 (자연 성장): 220 | (동일) |
 | **축 3** | **없음** | **Module A 위성 AGB (보은 산외면 오대리 25.6ha 실측)** |
-| 결론 | 차이 +103%, 가설 (a)/(b) 미결 | **위성이 가설 판별** |
+| 결론 | 차이 +45%, 가설 (a)/(b) 미결 | **위성이 가설 판별** |
 
-**핵심 설계 — 위성이 +103% 의 원인 규명**:
+**핵심 설계 — 위성이 +45% 의 원인 규명**:
 - Module A 위성 AGB ≈ 인증 흡수량 기반 추정 → 가설 (b) *경영 효과* 입증 (간벌·시비 후 실측)
 - Module A 위성 AGB ≈ Module C 모델 → 가설 (a) *인증 과대* (피크값×30 회계)
 - 위성 학자 Round 2 핵심 카드 — GEDI L4A footprint (36.58°N 보은 cover, 25-75 shots) + Sentinel-2 NDVI 시계열 (벌채 여부 검증)
@@ -115,7 +115,7 @@
 - 영세림 (1-2ha) mixed pixel 30-40% → **NFI Weibull (원 2) 이 여전히 best** 임을 입증
 - → 위성 학자 발견 ("영세림은 NFI direct lookup 우위") 재확인. D102 정당화.
 
-### D115 — KAU WTA 돌파 → **Module A 독립 (변화 없음)**
+### D115 — KAU WTA 돌파 임박 → **Module A 독립 (변화 없음)**
 
 - KAU·WTA 는 *시장 데이터* (정우 D 모듈) — Module A 위성과 완전 무관
 - 발표 슬라이드 4 (Finding A, 핵심 narrative) 그대로 유지
@@ -216,10 +216,10 @@ saturation_warning=True      →   "high" tier 강제 + "위성 포화" note
                   보은 산외면 오대리 (25.6ha, 인증 8,197 tCO₂)
    ┌────────────────────────────────────────────────────┐
    │  축 1: carbonregistry 인증    320 tCO₂/ha/30yr      │
-   │  축 2: Module C 모델 (자연)   157 tCO₂/ha/30yr      │
+   │  축 2: Module C 모델 (자연)   220 tCO₂/ha/30yr      │
    │  축 3: Module A 위성 AGB      ??? (실측)            │
    └────────────────────────────────────────────────────┘
-         → 축 3 위치가 +103% 차이의 원인 규명
+         → 축 3 위치가 +45% 차이의 원인 규명
 ```
 
 - 위성 학자 Plan B (plan_b_satellite.py stub) 가 GEDI L4A + Sentinel-2 NDVI 시계열로 검증

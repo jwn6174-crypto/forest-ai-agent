@@ -16,11 +16,13 @@ lev_core.py — Faustmann–Hartman LEV 단일 시나리오 결정론 계산.
 """
 
 import math
+from functools import lru_cache
 from typing import Dict
 
 from .climate_multiplier import get_climate_multiplier
 from .grade_distribution import estimate_grade_distribution
 from .hwp_decay import compute_hwp_npv_contribution
+from .kau_breakeven import compute_kau_breakeven, format_kau_breakeven_message
 from .ntfp_income import compute_ntfp_npv
 from .subsidies import lookup_thinning_revenue
 
@@ -139,6 +141,24 @@ except ImportError:
 
 
 # ============================================================
+# 시장 스냅샷 메모이즈 (D128 — 성능 치명 결함 수정)
+# ============================================================
+# market_snapshot(today_iso) 는 동일 날짜에 대해 모든 Monte Carlo
+# 샘플·6 시나리오에서 똑같은 값을 돌려준다. 그런데 정우 module_bd 의
+# market_snapshot 은 호출될 때마다 data.go.kr 에 KAU 시세를 라이브로
+# 최대 14회 요청한다(find_latest_data, 약 3.8초). 캐싱하지 않으면
+# compute_lev_single 한 번이 ~9초, LHS 300 샘플 × 6 시나리오 한 폴리곤이
+# 수십 분으로 늘어나 시스템이 사실상 실행 불가능해진다.
+# 날짜별로 한 번만 실호출하도록 메모이즈한다 — 데이터는 그대로 '진짜'
+# 시세이고(1회 실측), 속도만 수백 배 빨라진다. 반환 dict 는 읽기 전용으로만
+# 사용되므로 캐시 객체 공유가 안전하다.
+@lru_cache(maxsize=16)
+def _market_snapshot_cached(today_iso: str) -> Dict:
+    """date 별 1회만 market_snapshot 실호출 (네트워크·parquet 재로드 방지)."""
+    return market_snapshot(today_iso)
+
+
+# ============================================================
 # 핵심 — Faustmann-Hartman 단일 시나리오 NPV·LEV
 # ============================================================
 
@@ -217,7 +237,8 @@ def compute_lev_single(
     T_horizon = max(T - age_now, 0)
 
     # ─── 1. 시장 + 성장 + 비용 호출 ─────────────────────────────────
-    market = market_snapshot(today_iso)
+    # D128: 날짜별 1회만 실호출(메모이즈). MC 수백 샘플에서 동일 스냅샷 재사용.
+    market = _market_snapshot_cached(today_iso)
 
     # 기후 multiplier
     if climate_multiplier is None:
@@ -247,15 +268,40 @@ def compute_lev_single(
         "volume": 0, "dbh": 10, "carbon_uptake_rate": 0,
     }
 
-    # D123: volume_corrected (정우 D15 NEX-GDDP) 우선, fallback baseline × climate_multiplier
+    # D130: 기후 보정 소비 로직 — 결측·외삽에 견고하게 정정.
+    # 정우 growth_predict 는 일부 SSP·시군·고도 조합에서 미래 기후 입력이
+    # 없으면 volume=None 을 돌려준다(예: 보은 SSP126). 또 학습 범위를 벗어난
+    # 미래 기온에서는 climate_correct 가 외삽되어 SSP245·SSP585 가 동일한
+    # volume_corrected 를 주고(extrap=True), 그 부호가 임종환 2020 과 반대가
+    # 된다(D124). 두 경우 모두 경제성 비교를 왜곡하므로:
+    #   · volume 결측 → baseline 성장으로 재호출해 안전 복귀
+    #   · 외삽(extrap) → 임종환 2020 multiplier(부호 일관) 사용
+    #   · 학습 범위 안(in-sample) 에서만 정우 climate_correct 를 신뢰
+    extrap = bool(final.get("climate_extrapolation"))
+    if final.get("volume") is None:
+        # SSP 입력 결측(volume=None) → baseline 궤적의 *마지막 step 전체* 로 대체.
+        # volume 뿐 아니라 dbh·grade_distribution·carbon_uptake_rate 까지 baseline 을
+        # 써야 등급 구성·탄소가 일관된다(volume 만 복구하면 grade 가 Heuristic 으로
+        # 빠져 NPV 가 왜곡됨). 기후 효과는 아래에서 multiplier 로 반영.
+        base_traj = growth_predict(
+            species, site_index, age_now, forecast_years,
+            climate_scenario="baseline", elev=elev, sigun=sigun,
+        )
+        final = base_traj[-1] if base_traj else {"volume": 0, "dbh": 10}
+        extrap = False
     volume_base = final.get("volume") or 0
+
     volume_corrected = final.get("volume_corrected")
-    if volume_corrected is not None and volume_corrected != volume_base:
-        # 정우 climate_correct 가 적용됨 (실 모델)
+    if (
+        volume_corrected is not None
+        and not extrap
+        and volume_corrected != volume_base
+    ):
+        # 정우 climate_correct in-sample 적용 (학습 범위 내 — 신뢰)
         volume_per_ha_T = volume_corrected
         climate_residual = final.get("climate_residual", 0)
     else:
-        # Fallback: Module C 의 climate_multiplier (임종환 2020)
+        # 결측·외삽·baseline → 임종환 2020 climate_multiplier (부호 일관)
         volume_per_ha_T = volume_base * climate_multiplier
         climate_residual = 0
 
@@ -313,12 +359,22 @@ def compute_lev_single(
     total_cost = cost_undisc * math.exp(-discount_rate * T_horizon)
 
     # ─── 4. 탄소 수입 (시나리오별) ─────────────────────────────────
-    p_KOC = market.get("koc_estimate") or 12040
-    wta_hurdle = market.get("vcm_floor_wta") or 17039
+    # 기본값은 data.go.kr KAU25 2026-03 종가(15,550원)와 그 KOC 환산값.
+    # (라이브 market_snapshot 이 최신값을 주면 그것을 우선 사용)
+    kau_used = market.get("kau_close") or 15_550
+    p_KOC = market.get("koc_estimate") or round(15_550 * 0.7)  # ≈10,885
+    wta_hurdle = market.get("vcm_floor_wta") or 17_039
+
+    # 탄소 수익화 여부 — KOC 가 산주 WTA 의향가격(박2020, 17,039원)을 넘어야
+    # 산주가 실제로 배출권을 판다. 이 게이트를 carbon_revenue 와 hwp_loss 가
+    # 공유한다(D129): 탄소를 팔지 않는 산주에게는 벌채 후 HWP 탄소 방출이
+    # 회계상 '손실'이 아니다. 둘을 같은 조건으로 묶어 부호 비대칭을 제거한다.
+    carbon_monetized = (
+        scenario in ["5년", "10년", "연장KOC", "임산물"] and p_KOC > wta_hurdle
+    )
 
     carbon_revenue = 0.0
-    if scenario in ["5년", "10년", "연장KOC", "임산물"] and p_KOC > wta_hurdle:
-        # KOC > WTA hurdle 만족 시만 카운트 — 경제학자 권고
+    if carbon_monetized:
         for t, step in enumerate(growth_traj):
             if t == 0:
                 continue
@@ -331,12 +387,6 @@ def compute_lev_single(
             carbon_revenue += (
                 p_KOC * delta_C * area_ha * interval * math.exp(-discount_rate * t_year)
             )
-
-    # KOC > WTA 미충족 시 carbon_revenue=0 → kau_breakeven 계산
-    kau_breakeven = None
-    if scenario in ["5년", "10년", "연장KOC"]:
-        # carbon_revenue 가 0 이 되는 임계 KOC = WTA hurdle
-        kau_breakeven = wta_hurdle / 0.7  # KOC = KAU * 0.7 가정 inverse
 
     # ─── 5. NTFP 수입 (시나리오 "임산물" 만) ──────────────────────────
     ntfp_revenue = 0.0
@@ -360,13 +410,18 @@ def compute_lev_single(
     # ─── 7. HWP carbon decay (Hartman 손실) ──────────────────────────
     # carbon stock at T = volume × 0.5 (carbon fraction) × 3.667 (C → CO2)
     carbon_stock_T = volume_per_ha_T * 0.5 * 3.667
-    hwp_loss_npv = compute_hwp_npv_contribution(
-        carbon_stock_T * area_ha,
-        T_horizon,
-        discount_rate,
-        p_KOC,
-        hwp_horizon,
-    )  # 음수
+    if carbon_monetized:
+        # 탄소를 수익화하는 산주만 벌채 시 reversal(방출) 손실을 진다(D129).
+        hwp_loss_npv = compute_hwp_npv_contribution(
+            carbon_stock_T * area_ha,
+            T_horizon,
+            discount_rate,
+            p_KOC,
+            hwp_horizon,
+        )  # 음수
+    else:
+        # 탄소 미수익화(KOC<WTA 또는 비탄소 시나리오) → reversal 책임 없음
+        hwp_loss_npv = 0.0
 
     # ─── 8. NPV·LEV ──────────────────────────────────────────────
     npv = (
@@ -378,6 +433,13 @@ def compute_lev_single(
         lev = npv / (1 - math.exp(-discount_rate * T_horizon))
     else:
         lev = npv
+
+    # KAU breakeven — NPV 와 carbon_revenue 를 알아야 정확히 풀린다(D129).
+    # 기존의 wta_hurdle/0.7 하드코딩을 제거하고 정식 함수를 호출한다.
+    # carbon_revenue=0 이면 함수가 kau_breakeven=None + 안내문을 돌려준다.
+    kau_be_result = compute_kau_breakeven(npv, kau_used, carbon_revenue)
+    kau_breakeven = kau_be_result["kau_breakeven"]
+    kau_breakeven_warning = format_kau_breakeven_message(kau_be_result)
 
     # ─── 9. 결과 dict ─────────────────────────────────────────────
     data_sources = {
@@ -404,7 +466,8 @@ def compute_lev_single(
         f"climate_multiplier={climate_multiplier:.3f} 단일 적용 (시점별 보간 미실시)",
         "fallback mode" if not HAS_MODULE_BD else None,
         (
-            "정우 D15 climate_correct 외삽 영역"
+            "정우 D15 climate_correct 가 미래 기온 학습범위를 벗어나 외삽됨 "
+            "→ 임종환 2020 multiplier 로 대체(D130)"
             if final.get("climate_extrapolation")
             else None
         ),
@@ -428,6 +491,7 @@ def compute_lev_single(
         "carbon_stock_T_tco2_per_ha": round(carbon_stock_T, 2),
         "grade_distribution_T": grade_dist_T,
         "kau_breakeven": kau_breakeven,
+        "kau_breakeven_warning": kau_breakeven_warning,
         "climate_multiplier_applied": round(climate_multiplier, 3),
         "discount_rate": discount_rate,
         "data_sources": data_sources,

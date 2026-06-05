@@ -12,7 +12,7 @@
 
 | 페르소나 | 핵심 메시지 1줄 |
 |---|---|
-| 위성/원격탐사 학자 | **+103% 차이는 underestimation 이 아니라 자연성장 vs 경영후 측정의 모집단 차이**. GEDI+S2 triangulation Plan B |
+| 위성/원격탐사 학자 | **+45% 차이는 underestimation 이 아니라 자연성장 vs 경영후 측정의 모집단 차이**. GEDI+S2 triangulation Plan B |
 | 영세 사유림 산주 | **숫자 하나 크게**, 나머지는 접어두고, 다음 행동은 *사람 이름·전화·대본*까지 손에 쥐어줘야 산주가 움직임 |
 | 통합자 | "Faustmann-Hartman 한국 변형으로 포착한 **KAU 시장 변곡점**" — 발표 통합 타이틀 |
 
@@ -23,7 +23,7 @@
 ### 1.1 NFI direct lookup vs 위성 모델 — 영세림 적합성
 영세 polygon (1-2ha) 에서 위성 RF/XGBoost 가 *더 위험*. Sentinel-2 10m 픽셀 기준 1ha = 100 픽셀이지만 가장자리 mixed pixel + 인접 spillover 30-40%. RF saturation (>150 Mg/ha 에서 NDVI/SAR 포화). **NFI lookup (임상도 + 영급/우점수종 stratified mean) = IPCC Tier 2 표준** — Avitabile et al. (2016) 도 소면적 plot-based stratification 우위 인정.
 
-### 1.2 +103% 차이 — 위성 시각 해석
+### 1.2 +45% 차이 — 위성 시각 해석
 **가설 (b) 경영 후 측정** 압도적 가능성. 인증사업 320 tCO₂/ha/30yr 는 *간벌·시비·천연갱신 보완 후 실측 DBH 기반*, Module C 는 *yield table 기반 자연 성장*. Sentinel-2 NDVI 시계열로 검증: 인증사업지가 일반 임분 대비 NDVI peak +5-10%·빠른 회복 → **서로 다른 모집단 비교** (underestimation 아님).
 
 ### 1.3 보은 산외면 오대리 GEDI 검증
@@ -35,7 +35,7 @@ GEDI 51.6°N 까지 cover → 36.58°N 보은 궤도 내. 한국 위도 footprin
 ### 1.5 위험 + Plan B
 reviewer 공격 거의 확실 ("왜 위성 안 썼나"). **Plan B = NFI baseline + GEDI L4A footprint sliced + Sentinel-2 NDVI 시계열 triangulation**. 희도 1주 안에 GEDI Python (h5py + earthaccess) + S2 NDVI (GEE) 추가 가능. Framing: "Module C = 경영 의사결정용 보수적 추정, GEDI/S2 = 검증 레이어".
 
-**핵심 메시지**: +103% 는 underestimation 이 아니라 모집단 차이. GEDI+S2 시계열 triangulation Plan B 로 reviewer 공격 차단.
+**핵심 메시지**: +45% 는 underestimation 이 아니라 모집단 차이. GEDI+S2 시계열 triangulation Plan B 로 reviewer 공격 차단.
 
 ---
 
@@ -67,14 +67,14 @@ reviewer 공격 거의 확실 ("왜 위성 안 썼나"). **Plan B = NFI baseline
 ## 3. 산림경제·정책 통합자 답변
 
 ### 3.1 학술 발견 priority — D23 > D22
-**D23 (KAU+126%·WTA 돌파) 강한 주장**. D22 는 "누가 맞는가" 방어 부담 큼. D23 은 *시장 데이터 자체가 말하는 변곡점* — 산림청·임업진흥원 *immediate relevance* (지금 행동해야 할 정책 타이밍). Framing: "Faustmann LEV 가 16개월 전엔 임업 손해, 지금은 흑자 — 한국 산림경제 tipping point 를 모델로 포착".
+**D23 (KAU+79.4%·WTA 돌파 임박) 강한 주장**. D22 는 "누가 맞는가" 방어 부담 큼. D23 은 *시장 데이터 자체가 말하는 변곡점* — 산림청·임업진흥원 *immediate relevance* (지금 행동해야 할 정책 타이밍). Framing: "Faustmann LEV 가 16개월 전엔 임업 손해, 지금은 흑자 — 한국 산림경제 tipping point 를 모델로 포착".
 
 ### 3.2 5분 7슬라이드 발표 구조 ⭐ 채택
 1. **Title** + 한 줄 메시지
 2. **Problem**: WTA hurdle 미돌파 시대의 한국 임업
 3. **Method**: Faustmann-Hartman 한국 변형 + 5+1 학자 deliberation
 4. **Finding A**: D23 KAU 변곡점 시연 (live dashboard) ⭐ 핵심 narrative
-5. **Finding B**: D22 인증-모델 +103% gap
+5. **Finding B**: D22 인증-모델 +45% gap
 6. **Validation**: NFI direct lookup + 129 tests + Module A 미시작 framing
 7. **Conclusion** + 정책 제언
 

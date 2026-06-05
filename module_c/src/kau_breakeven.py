@@ -1,15 +1,17 @@
 """
 kau_breakeven.py — KAU 임계가 (breakeven point) 계산.
 
-산림경제학자 deliberation 핵심 발견:
-- KAU 17,200원 vs WTA 17,039원 = 161원 차이 (0.9%)
+산림경제학자 deliberation 핵심 발견 (실데이터 기준, data.go.kr 1160100):
+- 최신 검증 가능 KAU25 종가 = 15,550원 (2026-03) vs WTA 17,039원
+  → 아직 1,489원(8.7%) 미달. 산주 의향가격을 *아직 돌파하지 않음*.
+- 다만 2025-07 저점(8,670원) 대비 16개월 +79% 급등 — 돌파 임박 국면.
 - thin market 구조적 임계 (Hanley & Spash)
 - 시나리오 4 (연장KOC) 의 LEV 가 음수로 전환되는 KAU 임계가 계산
 
 LEV = LEV_no_carbon + (KAU × ratio_carbon)
 → LEV = 0 일 때의 KAU = breakeven
 
-희도 D-경제학 결정 — 2026-05-20 Day 6 작성
+희도 D-경제학 결정 — 2026-05-20 Day 6 작성 (2026-06-05 실데이터 정합 정정 D131)
 """
 
 from typing import Dict
@@ -22,9 +24,9 @@ def compute_kau_breakeven(
     *,
     koc_ratio: float = 0.7,
     wta_hurdle: float = 17039.0,
-    # 실 KAU 시세 (2026-05-19 KAU25 종가, data.go.kr 1160100):
-    # 정우 5/15 시점 17,200원 → 5/19 19,600원 +14% 상승.
-    # margin (KAU - WTA) = 19,600 - 17,039 = 2,561원 (15%) — 안전 영역.
+    # 실 KAU 시세 (data.go.kr 1160100 GetCertifiedEmissionReductionPriceInfo):
+    # 최신 검증 가능 KAU25 종가 = 15,550원 (2026-03).
+    # margin (KAU - WTA) = 15,550 - 17,039 = -1,489원 (-8.7%) — 아직 미달.
 ) -> Dict[str, any]:
     """
     LEV 가 0 (또는 일정 floor) 이 되는 KAU 임계가.

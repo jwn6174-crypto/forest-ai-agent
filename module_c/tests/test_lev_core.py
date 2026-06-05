@@ -43,10 +43,14 @@ def test_thinning_scenario_has_subsidy():
     assert r["subsidy_revenue"] > 0
 
 
-# [검증] HWP loss 음수
-def test_hwp_loss_negative():
-    r = _base()
-    assert r["hwp_loss_npv"] < 0
+# [검증] HWP loss 게이팅 (D129) — 탄소 미수익화 시 0
+def test_hwp_loss_zero_when_carbon_not_monetized():
+    """즉시벌채(탄소 비수익화) 또는 KOC<WTA 면 HWP reversal 손실은 0.
+    탄소시장에 참여하지 않는 산주에게 HWP 탄소방출은 재무 손실이 아니다.
+    HWP decay 의 음수 기여 자체는 test_hwp_decay.py 가 직접 검증한다."""
+    r = _base()  # 즉시 — carbon_revenue 미발생 시나리오
+    assert r["carbon_revenue"] == 0
+    assert r["hwp_loss_npv"] == 0
 
 
 # [검증] 기후 시나리오 적용

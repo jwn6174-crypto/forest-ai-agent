@@ -108,20 +108,20 @@ Module A README + predict_stand docstring:
 > "NFI 외부검증 R²=-0.187 (고AGB 침엽수림 과소추정 한계, GEDI saturation 기인)"
 
 ### 학술 시사 — 우리 D114·D122 와 연결
-- **D114** (carbonregistry 인증 +103%): 우리 가설 (b) 경영 후 측정 vs (a) 인증 과대
+- **D114** (carbonregistry 인증 +45%): 우리 가설 (b) 경영 후 측정 vs (a) 인증 과대
 - **D126** (위성 NFI R²=-0.187): **위성도 고AGB 침엽수 과소추정** → Module A 위성 AGB 가 *낮게* 나옴
 - → **3축 triangulation 결과 예측**:
-  - 인증 320 (높음) > Module C 모델 157 > **Module A 위성 (saturation 으로 더 낮을 수)**
+  - 인증 320 (높음) > Module C 모델 220 > **Module A 위성 (saturation 으로 더 낮을 수)**
   - 또는 위성이 인증·모델 사이 → 가설 판별
-- **핵심**: GEDI saturation (AGB>130 침엽수 과소) 는 우리 D114 +103% 의 *제3 증거*
+- **핵심**: GEDI saturation (AGB>130 침엽수 과소) 는 우리 D114 +45% 의 *제3 증거*
   - 위성·수확표·임가경제·국가통계 모두 *실제 경영림보다 낮게* 추정하는 공통 패턴
   - **= "한국 산림 탄소 추정의 구조적 과소" 가설** (학술 발견 5개 통합)
 
 ### 학술 발견 5개 종합
 | ID | 발견 | 패턴 |
 |---|---|---|
-| D114 | carbonregistry 인증 +103% | 인증 高 vs 모델 低 |
-| D115 | KAU WTA 첫 돌파 | 시장 변곡점 |
+| D114 | carbonregistry 인증 +45% | 인증 高 vs 모델 低 |
+| D115 | KAU WTA 돌파 임박(8.7% 미달) | 시장 변곡점 |
 | D122 | 영세림 등급분포 역-J | 수확표 高 vs NFI 低 |
 | D124 | climate signal 부호 정반대 | 시뮬 vs 실측 |
 | **D126** | 위성 GEDI saturation R²=-0.187 | 위성 低 (침엽수 과소) |
@@ -181,7 +181,7 @@ ui ScenarioTable/NPVChart/ParetoChart/chat   ← 수범 E
 | 축 | 데이터 | 예상값 (보은 오대리 25.6ha) |
 |---|---|---|
 | 축 1 | carbonregistry 인증 | 320 tCO₂/ha/30yr |
-| 축 2 | Module C 모델 (자연 성장) | 157 tCO₂/ha/30yr |
+| 축 2 | Module C 모델 (자연 성장) | 220 tCO₂/ha/30yr |
 | **축 3** | **Module A 위성 AGB → carbon** | **predict_stand 실측 (saturation 가능)** |
 
 → Module A 의 boeun_boundary geojson + raster 로 실 polygon 추정 가능.

@@ -11,7 +11,7 @@
 
 ### `parse_carbonregistry.py`
 사용자가 conversation 으로 제공한 carbonregistry 658건 raw text 파싱.
-- D114 학술 발견 (인증 320 vs 모델 157 = +103.2%) 의 근원 데이터.
+- D114 학술 발견 (인증 320 vs 모델 220 = +45.4%) 의 근원 데이터.
 - 출력: `module_c/data/raw/registered_offset/all_projects_2026_05.json` (충북·전북·강원 정선)
 - 출력: `module_c/data/processed/validation_cases.json` (W6 검증 case 4개)
 

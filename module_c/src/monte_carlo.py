@@ -227,6 +227,8 @@ def run_monte_carlo(
         "hwp_loss_median": detailed["hwp_loss_npv"],
         "carbon_stock_T_tco2_per_ha_median": detailed["carbon_stock_T_tco2_per_ha"],
         "grade_distribution_T": detailed["grade_distribution_T"],
+        "kau_breakeven": detailed.get("kau_breakeven"),
+        "kau_breakeven_warning": detailed.get("kau_breakeven_warning"),
         "climate_multiplier_applied": detailed["climate_multiplier_applied"],
         "n_samples": n_samples,
         "std_ratio": std_ratio,

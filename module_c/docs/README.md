@@ -63,7 +63,7 @@ module_c/docs/
 - §2 Background — Faustmann + Hartman + 선행연구 13편
 - §3 Data — 정우 5/5 + Module C 자체 데이터 8 종
 - §4 Methods — 수식 + 6 시나리오 + LHS + HWP + 8 deliberation
-- §5 Results — ⭐ **D115 KAU 변곡점** + D114 +103% gap
+- §5 Results — ⭐ **D115 KAU 변곡점** + D114 +45% gap
 - §6 Discussion — 두 가설 비교 + Module A framing + Limitations
 - §7 Conclusion + References 14편 + Appendix
 
@@ -78,12 +78,12 @@ module_c/docs/
 2. Problem: WTA hurdle 미돌파 시대의 한국 임업
 3. Method: Faustmann-Hartman + 8 학자 deliberation
 4. ⭐ **Finding A: D115 KAU 변곡점** (핵심 narrative)
-5. Finding B: D114 인증-모델 +103% gap
-6. Validation: NFI direct lookup + 141 tests
+5. Finding B: D114 인증-모델 +45% gap
+6. Validation: NFI direct lookup + 175 tests
 7. Conclusion + 정책 제언
 
 ### `QA_anticipated.md` — 20 Q&A 예상 답변 (Tier 1·2·3·4)
-- Tier 1 (가장 예상): 위성 미사용, +103% 차이, KAU 변동, 민석 미시작, 6 시나리오 UX
+- Tier 1 (가장 예상): 위성 미사용, +45% 차이, KAU 변동, 민석 미시작, 6 시나리오 UX
 - Tier 2 (학술 reviewer): Faustmann 식 적용, MC 수렴, Lognormal, HWP 한국 적용, 8 deliberation
 - Tier 3 (정책 reviewer): 산림청 기여, 노령림 정책, 실 배포 가능성
 - Tier 4 (트리키): AI 사용, 양 강조, 정우 vs 희도, 200만원 상금, 다음 단계

@@ -222,8 +222,8 @@ if __name__ == "__main__":
     snap = MarketSnapshot(
         date="2026-05-13",
         timber_price={"1등급": 199700, "2등급": 173400},
-        kau_close=17200.0,
-        koc_estimate=12040.0,
+        kau_close=15550.0,
+        koc_estimate=10885.0,
     )
     print(f"   ✅ MarketSnapshot 가이드 기본: date={snap.date}, KAU={snap.kau_close}")
 
@@ -232,8 +232,8 @@ if __name__ == "__main__":
     snap2 = MarketSnapshot(
         date="2026-05-13",
         timber_price={"1등급": 199700},
-        kau_close=17200.0,
-        koc_estimate=12040.0,
+        kau_close=15550.0,
+        koc_estimate=10885.0,
         timber_price_by_species={"잣나무": {"1등급": 154700}},
         timber_price_meta={"source": "KOFPI Q4 2025"},
     )
@@ -359,7 +359,8 @@ class LEVResult(BaseModel):
     uncertainty_note: Optional[str] = None
     kau_breakeven: Optional[float] = Field(
         None,
-        description="KAU 임계가 (원/tCO₂). D115 학술 발견 — WTA 17,039원 첫 돌파 2026-03~05.",
+        description="KAU 임계가 (원/tCO₂). D115 — KAU25 2026-03 15,550원, WTA 17,039원에 "
+        "8.7% 미달(돌파 임박).",
     )
     kau_breakeven_note: Optional[str] = None
     climate_multiplier_applied: Optional[float] = Field(
