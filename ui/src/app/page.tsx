@@ -9,6 +9,7 @@ import GradeDistributionChart from "@/components/GradeDistributionChart";
 import ParetoChart from "@/components/ParetoChart";
 import ScenarioTable from "@/components/ScenarioTable";
 import ChatPanel from "@/components/ChatPanel";
+import ReportSidebar from "@/components/ReportSidebar";
 import { useForestAnalysis } from "@/hooks/useForestAnalysis";
 
 export default function Home() {
@@ -117,7 +118,10 @@ export default function Home() {
         <main className="flex-1 overflow-hidden">
           <div className="h-full max-w-screen-2xl mx-auto flex gap-3 p-3">
 
-            {/* 왼쪽: 상태 카드 + 차트 + 표 */}
+            {/* 맨 왼쪽: 보고서 사이드바 */}
+            <ReportSidebar data={partial} />
+
+            {/* 중앙: 상태 카드 + 차트 + 표 */}
             <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-y-auto">
               <ForestStateCard state={partial?.state} />
 
