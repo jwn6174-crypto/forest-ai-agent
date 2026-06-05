@@ -17,7 +17,9 @@ const SCENARIO_COLORS: Record<string, string> = {
   ten_year:   "#4a7c52",
   koc:        "#3f6480",
   ntfp:       "#6b4e7a",
+  thinning:   "#2e6e5a",
 };
+const sc = (id: string) => SCENARIO_COLORS[id] ?? "#4a5568";
 
 const CustomTooltip = ({
   active,
@@ -41,12 +43,12 @@ function Skeleton() {
   return <div className="h-52 bg-forest-800 rounded animate-pulse" />;
 }
 
-function ScenarioUnavailable() {
+function PendingModuleC() {
   return (
     <div className="h-52 flex flex-col items-center justify-center gap-2 text-forest-500">
-      <div className="text-2xl opacity-40">⚠️</div>
-      <p className="text-sm font-medium text-forest-400">경제성 분석 결과 없음</p>
-      <p className="text-xs">분석 서버(Module C)에서 시나리오를 받지 못했습니다</p>
+      <div className="text-2xl opacity-40">⏳</div>
+      <p className="text-sm font-medium text-forest-400">시나리오 분석 오류</p>
+      <p className="text-xs">파레토 분석 모듈 연동 대기</p>
     </div>
   );
 }
@@ -66,7 +68,7 @@ export default function ParetoChart({ scenarios }: { scenarios?: Scenario[] | nu
       </div>
 
       {scenarios === null ? (
-        <ScenarioUnavailable />
+        <PendingModuleC />
       ) : !data ? (
         <Skeleton />
       ) : (
@@ -108,14 +110,14 @@ export default function ParetoChart({ scenarios }: { scenarios?: Scenario[] | nu
               <Scatter
                 key={s.id}
                 data={[s]}
-                fill={SCENARIO_COLORS[s.id]}
+                fill={sc(s.id)}
                 opacity={0.9}
                 r={s.recommended ? 10 : 7}
               >
                 <LabelList
                   dataKey="name"
                   position="top"
-                  style={{ fontSize: 10, fill: SCENARIO_COLORS[s.id] }}
+                  style={{ fontSize: 10, fill: sc(s.id) }}
                 />
               </Scatter>
             ))}

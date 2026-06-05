@@ -18,7 +18,10 @@ const SCENARIO_COLORS: Record<string, string> = {
   ten_year:   "#4a7c52",   // 포레스트 그린
   koc:        "#3f6480",   // 슬레이트 블루 (탄소)
   ntfp:       "#6b4e7a",   // 더스티 모브 (비목재)
+  thinning:   "#2e6e5a",   // 청록 (간벌+연장)
 };
+const SCENARIO_COLOR_DEFAULT = "#4a5568";
+const sc = (id: string) => SCENARIO_COLORS[id] ?? SCENARIO_COLOR_DEFAULT;
 
 const CustomBar = (props: {
   x?: number; y?: number; width?: number; height?: number;
@@ -76,12 +79,12 @@ function Skeleton() {
   );
 }
 
-function ScenarioUnavailable() {
+function PendingModuleC() {
   return (
     <div className="h-52 flex flex-col items-center justify-center gap-2 text-forest-500">
-      <div className="text-2xl opacity-40">⚠️</div>
-      <p className="text-sm font-medium text-forest-400">경제성 분석 결과 없음</p>
-      <p className="text-xs">분석 서버(Module C)에서 시나리오를 받지 못했습니다</p>
+      <div className="text-2xl opacity-40">⏳</div>
+      <p className="text-sm font-medium text-forest-400">시나리오 분석 오류</p>
+      <p className="text-xs">NPV 시나리오 분석 모듈 연동 대기</p>
     </div>
   );
 }
@@ -95,7 +98,7 @@ export default function ScenarioNPVChart({ scenarios }: { scenarios?: Scenario[]
       </div>
 
       {scenarios === null ? (
-        <ScenarioUnavailable />
+        <PendingModuleC />
       ) : scenarios === undefined ? (
         <div className="h-52"><Skeleton /></div>
       ) : (
@@ -124,7 +127,7 @@ export default function ScenarioNPVChart({ scenarios }: { scenarios?: Scenario[]
               {scenarios.map((s) => (
                 <Cell
                   key={s.id}
-                  fill={SCENARIO_COLORS[s.id]}
+                  fill={sc(s.id)}
                 />
               ))}
             </Bar>
@@ -138,11 +141,11 @@ export default function ScenarioNPVChart({ scenarios }: { scenarios?: Scenario[]
             <span
               key={s.id}
               className="flex items-center gap-1 text-xs"
-              style={{ color: SCENARIO_COLORS[s.id] }}
+              style={{ color: sc(s.id) }}
             >
               <span
                 className="w-2.5 h-2.5 rounded-sm inline-block"
-                style={{ backgroundColor: SCENARIO_COLORS[s.id], opacity: 0.85 }}
+                style={{ backgroundColor: sc(s.id), opacity: 0.85 }}
               />
               {s.name}
               {s.recommended && <span className="text-forest-400 font-bold">✓</span>}
