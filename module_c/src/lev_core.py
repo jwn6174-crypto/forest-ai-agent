@@ -159,6 +159,27 @@ def _market_snapshot_cached(today_iso: str) -> Dict:
 
 
 # ============================================================
+# 성장 예측 메모이즈 (D132 — Monte Carlo 중복 호출 제거)
+# ============================================================
+# growth_predict 의 입력(species·site_index·age_now·forecast_years·
+# climate_scenario·elev·sigun)은 한 임지·한 시나리오 안에서 Monte Carlo
+# 샘플이 바뀌어도 *동일* 하다. 샘플마다 달라지는 것은 volume multiplier·
+# 할인율·climate multiplier 인데 이들은 growth_predict *결과에 사후 적용*
+# 된다. 그런데 compute_lev_single 은 매 샘플마다 growth_predict 를 다시
+# 부르므로, LHS 120 샘플 × 6 시나리오 = 720 회 중 같은 인자 호출이 대부분
+# 중복이다(_lookup_stand 가 6,720 회 → 약 7s). 인자 기준으로 메모이즈하면
+# 정확도 손실 없이 그 시간을 거의 없앤다. 반환 trajectory 는 읽기 전용으로만
+# 쓰이므로 캐시 객체 공유가 안전하다.
+@lru_cache(maxsize=512)
+def _growth_predict_cached(species, site_index, age_now, forecast_years, climate_scenario, elev, sigun):
+    """동일 인자 growth_predict 를 1회만 실호출 (MC 샘플 간 재사용). forecast_years 는 tuple."""
+    return growth_predict(
+        species, site_index, age_now, list(forecast_years),
+        climate_scenario=climate_scenario, elev=elev, sigun=sigun,
+    )
+
+
+# ============================================================
 # 핵심 — Faustmann-Hartman 단일 시나리오 NPV·LEV
 # ============================================================
 
@@ -256,11 +277,10 @@ def compute_lev_single(
     elev = stand.get("elev")  # m, 보은 산외면 ~400m 등
     sigun = stand.get("sigun", "보은")  # 충북 시군
 
-    growth_traj = growth_predict(
-        species, site_index, age_now, forecast_years,
-        climate_scenario=climate_scenario,
-        elev=elev,
-        sigun=sigun,
+    # D132: 동일 인자면 MC 샘플 간 1회만 실호출 (forecast_years 는 tuple 로 해시)
+    growth_traj = _growth_predict_cached(
+        species, site_index, age_now, tuple(forecast_years),
+        climate_scenario, elev, sigun,
     )
 
     # 마지막 시점의 volume·dbh
@@ -283,9 +303,9 @@ def compute_lev_single(
         # volume 뿐 아니라 dbh·grade_distribution·carbon_uptake_rate 까지 baseline 을
         # 써야 등급 구성·탄소가 일관된다(volume 만 복구하면 grade 가 Heuristic 으로
         # 빠져 NPV 가 왜곡됨). 기후 효과는 아래에서 multiplier 로 반영.
-        base_traj = growth_predict(
-            species, site_index, age_now, forecast_years,
-            climate_scenario="baseline", elev=elev, sigun=sigun,
+        base_traj = _growth_predict_cached(
+            species, site_index, age_now, tuple(forecast_years),
+            "baseline", elev, sigun,
         )
         final = base_traj[-1] if base_traj else {"volume": 0, "dbh": 10}
         extrap = False
