@@ -16,9 +16,7 @@ interface Props {
 
 export default function PNUInput({ onAnalyze, isAnalyzing }: Props) {
   const [pnu, setPnu] = useState("");
-  // 백엔드 _PREF_MAP(safe|balanced|profit)과 어휘 일치 — 불일치 시 위험선호가
-  // Module C 추천에 반영되지 않고 항상 '균형'으로 처리된다.
-  const [risk, setRisk] = useState("balanced");
+  const [risk, setRisk] = useState("medium");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,9 +52,9 @@ export default function PNUInput({ onAnalyze, isAnalyzing }: Props) {
           onChange={(e) => setRisk(e.target.value)}
           className="px-3 py-2.5 rounded-lg text-sm bg-forest-850 border border-forest-600 text-forest-100 focus:outline-none focus:border-forest-400 cursor-pointer"
         >
-          <option value="safe">안정 (위험회피)</option>
-          <option value="balanced">균형</option>
-          <option value="profit">수익 (공격적)</option>
+          <option value="low">보수적</option>
+          <option value="medium">중간</option>
+          <option value="high">공격적</option>
         </select>
         <button
           type="submit"
