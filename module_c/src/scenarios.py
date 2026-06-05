@@ -110,12 +110,13 @@ def scenario_feasibility(
         (feasible: bool, note: Optional[str])
     """
     legal_min = rotation_age(species, ownership)
+    harvest_age = age_now + T  # 벌채 시점의 임령
 
-    if T >= legal_min:
+    if harvest_age >= legal_min:
         return True, None
 
     note = (
-        f"T={T}년 < 법정 기준벌기령 {legal_min}년 ({species}, {ownership}). "
+        f"벌채 임령 {harvest_age}년 < 법정 기준벌기령 {legal_min}년 ({species}, {ownership}). "
         f"산림자원법 시행규칙 별표 3 (2023-06-27 개정). "
         f"법적 예외 사유(재해·병해충 등) 없으면 벌채 불가."
     )
