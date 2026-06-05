@@ -258,7 +258,7 @@ if __name__ == "__main__":
     print("=" * 70)
     print()
     print("위성 학자 Round 2 권고:")
-    print("  - +103% 차이는 자연성장 vs 경영후 측정의 모집단 차이")
+    print("  - +45% 차이는 자연성장 vs 경영후 측정의 모집단 차이")
     print("  - GEDI L4A + Sentinel-2 NDVI 시계열 = 발표 가장 강력한 카드")
     print("  - NFI baseline + GEDI sliced + S2 NDVI triangulation Plan B")
     print()

@@ -11,8 +11,9 @@ def test_wta_hurdle_constant():
     assert r["margin_to_wta"] == 161  # 17,200 - 17,039
 
 
-def test_wta_hurdle_with_new_kau_19600():
-    """D23 — KAU 19,600 (2026-05) margin"""
+def test_wta_hurdle_with_hypothetical_kau_19600():
+    """margin 계산 검증 — KAU 가 WTA 를 돌파한 가상값(19,600) 입력 시 margin 부호.
+    (19,600 은 실측이 아니라 돌파 후를 가정한 민감도용 값. 최신 실측은 15,550)"""
     r = compute_kau_breakeven(50_000_000, 19_600, 5_000_000)
     assert r["margin_to_wta"] == 2_561  # 19,600 - 17,039
 

@@ -71,11 +71,13 @@ def test_kau_5_price_points():
 
 
 def test_kau_19600_passes_wta():
-    """D23: 2026-05 KAU 19,600원 = WTA 첫 돌파"""
+    """KAU 가 WTA 를 넘는 가상 점(19,600)은 wta_passed=True, 저점(8,670)은 False.
+    (19,600 은 돌파 후 가정값; 최신 실측은 2026-03 15,550 으로 아직 미돌파)"""
     r = sensitivity_kau_price(_stand(), "연장KOC", T=60)
     kau_data = {x["kau_price"]: x for x in r}
     assert kau_data[19600]["wta_passed"]
     assert not kau_data[8670]["wta_passed"]  # 2025-07 저점
+    assert not kau_data[15550]["wta_passed"]  # 2026-03 최신 실측 — 아직 미돌파
 
 
 def test_kau_wta_margin_calculation():

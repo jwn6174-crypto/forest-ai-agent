@@ -17,6 +17,9 @@
       "ha당 소득은 직접 통계 없음 — kg당 평균가 × 추정 ha당 생산량 (보은 노지재배 표준)",
       "면적 통계는 산림청 「임산물 생산조사」 도 단위만 — 시·군 단위는 산림조합 자료 필요",
       "송이 변동성 매우 큼 (2023→2024 41% 감소) — Monte Carlo std 큼"
+    ],
+    "corrections": [
+      "2026-06-05 감사: 고사리·산나물의 total_production_kg 가 100배 과대 기재되어 정정 (가격·생산액은 정확). 고사리 10,655,000→106,509 kg, 산나물 38,140,000→381,451 kg. revenue÷production=avg_price 항등식 복원."
     ]
   },
   "products": {
@@ -41,7 +44,10 @@
       "yield_period_years": 7,
       "labor_intensity": "high",
       "carbon_impact_on_pine": "+5 to +15% (간벌재 활용, 정기 솎음)",
-      "applicable_species_host": ["참나무류", "낙엽송 (보조)"],
+      "applicable_species_host": [
+        "참나무류",
+        "낙엽송 (보조)"
+      ],
       "scenario_label": "S5a",
       "main_production_region": "충청남도 부여군 (12,294 백만원), 전라남도 장흥군 (7,470 백만원), 충청북도 영동군 (7,285 백만원)",
       "source": "산림청 2024 임산물생산조사 보고서 표44",
@@ -82,7 +88,10 @@
       "yield_period_years": 50,
       "labor_intensity": "very_low",
       "carbon_impact_on_pine": "-15 to -25% (시비 제한, 하층식생 제거, 토양 N 빈영양 유지)",
-      "applicable_species_host": ["강원지방소나무", "중부지방소나무"],
+      "applicable_species_host": [
+        "강원지방소나무",
+        "중부지방소나무"
+      ],
       "scenario_label": "S5b",
       "main_production_region": "경상북도 영덕군 (4,387 백만원), 강원특별자치도 삼척시 (3,028 백만원), 경상북도 안동시 (2,903 백만원)",
       "source": "산림청 2024 임산물생산조사 보고서 표43",
@@ -94,14 +103,18 @@
       "korean_name": "산양삼 (단기재배)",
       "production_method": "임내 자생 환경 + 야생화 재배",
       "annual_income_won_per_ha": {
-        "min": 500000, "mean": 1000000, "max": 1500000
+        "min": 500000,
+        "mean": 1000000,
+        "max": 1500000
       },
       "std_estimate": 400000,
       "peak_year_after_planting": 7,
       "yield_period_years": 15,
       "labor_intensity": "medium",
       "carbon_impact_on_pine": "neutral (하층식생 활용)",
-      "applicable_species_host": ["all"],
+      "applicable_species_host": [
+        "all"
+      ],
       "scenario_label": "S5c",
       "subsidy_eligible": "산양삼 생산과정 확인 보조사업 1인 5건/건 38만원 (산림청 2025 지침 마. 산양삼)",
       "source_korea": "산림청 임산물생산조사 + 한국임업진흥원",
@@ -110,30 +123,42 @@
     "gosari_fern": {
       "korean_name": "고사리 (산나물)",
       "national_2024": {
-        "total_production_kg": 10655000,
+        "total_production_kg": 106509,
         "total_revenue_million_won": 720,
         "avg_price_won_per_kg": 6760
       },
-      "annual_income_won_per_ha": {"min": 300000, "mean": 500000, "max": 800000},
+      "annual_income_won_per_ha": {
+        "min": 300000,
+        "mean": 500000,
+        "max": 800000
+      },
       "growth_change_2023_2024": "+5.5% 생산량, +1.0% 생산액",
       "source": "산림청 2024 임산물생산조사 보고서 표9",
-      "applicable_species_host": ["all"]
+      "applicable_species_host": [
+        "all"
+      ]
     },
     "wild_vegetables_general": {
       "korean_name": "산나물 (일반 — 고사리·취·두릅 등)",
       "production_method": "임내 자생 채취 + 일부 재배",
       "national_2024": {
-        "total_production_kg": 38140000,
+        "total_production_kg": 381451,
         "total_revenue_million_won": 4265,
         "avg_price_won_per_kg": 11181
       },
-      "annual_income_won_per_ha": {"min": 300000, "mean": 500000, "max": 800000},
+      "annual_income_won_per_ha": {
+        "min": 300000,
+        "mean": 500000,
+        "max": 800000
+      },
       "std_estimate": 200000,
       "peak_year_after_planting": 1,
       "yield_period_years": "indefinite",
       "labor_intensity": "low",
       "carbon_impact_on_pine": "+0 to +5% (하층식생 자연 회복)",
-      "applicable_species_host": ["all"],
+      "applicable_species_host": [
+        "all"
+      ],
       "scenario_label": "S5d",
       "source": "산림청 2024 임산물생산조사 보고서 표8·9",
       "main_species": "도라지 (920억), 더덕 (1,632억), 고사리·두릅·취나물 (1,713억)"
@@ -146,8 +171,12 @@
         "avg_price_won_per_kg": 2700
       },
       "growth_change_2023_2024": "-7.0% 생산량, -1.4% 생산액",
-      "annual_income_won_per_ha": {"mean": 2500000},
-      "applicable_species_host": ["밤나무 (독립 단일종)"],
+      "annual_income_won_per_ha": {
+        "mean": 2500000
+      },
+      "applicable_species_host": [
+        "밤나무 (독립 단일종)"
+      ],
       "scenario_label": "S5e (단일종 재배)",
       "source": "산림청 2024 임산물생산조사 보고서"
     }
@@ -155,12 +184,45 @@
   "subsidy_eligibility": {
     "_note": "임산물 시나리오 (S5) 시작 시 적용 가능한 산림소득지침 2025 보조",
     "items": {
-      "토양개량제": {"국비비율": 0.70, "지방비비율": 0.30, "items": ["석회질", "규산질", "목재제품"]},
-      "유기질비료": {"단가범위": [1000, 1400], "보조": "600원 초과 금액"},
-      "임산물생산단지_노지재배": {"지원한도": "1-5억원", "국비비율": 0.40, "지방비비율": 0.20, "자부담": 0.40},
-      "임산물생산단지_시설재배": {"지원한도": "1-7억원", "국비비율": 0.40, "지방비비율": 0.20},
-      "임산물상품화": {"지원한도": "5천만원", "국비비율": 0.20, "지방비비율": 0.30, "융자": 0.30, "자부담": 0.20},
-      "산양삼_품질검사": {"단가": 380000, "단위": "건당", "한도": "1인 5건/년"}
+      "토양개량제": {
+        "국비비율": 0.7,
+        "지방비비율": 0.3,
+        "items": [
+          "석회질",
+          "규산질",
+          "목재제품"
+        ]
+      },
+      "유기질비료": {
+        "단가범위": [
+          1000,
+          1400
+        ],
+        "보조": "600원 초과 금액"
+      },
+      "임산물생산단지_노지재배": {
+        "지원한도": "1-5억원",
+        "국비비율": 0.4,
+        "지방비비율": 0.2,
+        "자부담": 0.4
+      },
+      "임산물생산단지_시설재배": {
+        "지원한도": "1-7억원",
+        "국비비율": 0.4,
+        "지방비비율": 0.2
+      },
+      "임산물상품화": {
+        "지원한도": "5천만원",
+        "국비비율": 0.2,
+        "지방비비율": 0.3,
+        "융자": 0.3,
+        "자부담": 0.2
+      },
+      "산양삼_품질검사": {
+        "단가": 380000,
+        "단위": "건당",
+        "한도": "1인 5건/년"
+      }
     },
     "law_basis": "「산림소득분야 2025년 사업시행지침」 산림청 (사용자 다운로드 2026-05-20)"
   },

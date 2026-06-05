@@ -139,8 +139,8 @@ async def analyze(req: AnalyzeRequest):
             "timber_price": {"특용재": 294300, "1등급": 199700, "2등급": 173400,
                              "3등급": 135800, "원주재": 85700, "원료재": 33800},
             "timber_price_by_species": {},
-            "kau_close": 17200.0,
-            "koc_estimate": 12040.0,
+            "kau_close": 15550.0,
+            "koc_estimate": 10885.0,
             "vcm_floor_wta": 17039.0,
             "discount_rate": 0.05,
         }
@@ -149,8 +149,8 @@ async def analyze(req: AnalyzeRequest):
     species_prices   = (market.get("timber_price_by_species") or {}).get(species, {})
     active_prices    = species_prices if species_prices else timber_prices_kr
 
-    kau_close     = market.get("kau_close")    or 17200.0
-    koc_estimate  = market.get("koc_estimate") or 12040.0
+    kau_close     = market.get("kau_close")    or 15550.0
+    koc_estimate  = market.get("koc_estimate") or 10885.0
     discount_rate = market.get("discount_rate") or 0.05
 
     # ── Module B: 성장 예측 ───────────────────────────────────────────────────

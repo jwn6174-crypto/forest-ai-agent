@@ -36,8 +36,8 @@
 - ✅ test_hwp_decay: IPCC 2019 reference (35/25/2년) 직접 검증
 - ✅ test_climate_multiplier: 임종환 2020 reference (낙엽송 SSP585 <0.75)
 - ✅ test_subsidies: 산림청 2025 reference (250만원/ha 솎아베기)
-- ✅ test_kau_breakeven: WTA 17,039원 + D115 KAU 19,600 reference
-- ✅ test_validation: D114 +103% 차이 reference
+- ✅ test_kau_breakeven: WTA 17,039원 + D115 KAU 15,550 reference
+- ✅ test_validation: D114 +45% 차이 reference
 
 ### 5. 5/5 진짜 데이터 추적
 - ✅ HWP 35/25/2년 → IPCC 2019 Refinement Vol4 Ch12 Table 12.2 (PMC 8666044 검증)
@@ -112,7 +112,7 @@
 | data JSON 룰베이스 | 5 진짜 PDF | 8 진짜 데이터 | 1.6x |
 | 5/5 진짜 데이터 | 5/5 ✅ | 8/8 ✅ | - |
 | 함수당 평균 tests | 9 | 7.4 | (비슷) |
-| 학술 발견 | 1 (placeholder 정정) | 2 (D114 +103%, D115 KAU 돌파) | 2x |
+| 학술 발견 | 1 (placeholder 정정) | 2 (D114 +45%, D115 KAU 돌파 임박) | 2x |
 | 전문가 deliberation | (없음) | 8 (Round 1: 5 + Round 2: 3) | - |
 
 ---
@@ -122,7 +122,7 @@
 | # | Module C 신규 | 의미 |
 |---|---|---|
 | 1 | **8 전문가 deliberation** | 학제적 모델링 — 정우 단독 결정 vs 희도 multi-expert |
-| 2 | **학술 발견 2개 명시** | D114 +103% / D115 WTA 돌파 — 정우 D2·D3 placeholder 정정의 확장 |
+| 2 | **학술 발견 2개 명시** | D114 +45% / D115 WTA 돌파 임박 — 정우 D2·D3 placeholder 정정의 확장 |
 | 3 | **2-tier Public API** | `from module_c.src import *` (48 symbols) — 정우는 함수 직접 import |
 | 4 | **Reproducibility 1 명령** | `python scripts/run_all.py` 전체 결과 재현 — 정우는 부분별 호출 |
 | 5 | **민감도 5 차원** | SI·할인율·SSP·KAU·HWP — 정우 module_bd 는 데이터 위주 |

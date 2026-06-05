@@ -26,15 +26,15 @@ Module C 는 네 모듈을 통합하는 과정에서 다섯 건의 학술적 발
 
 | ID | 발견 | 의미 |
 |---|---|---|
-| **D114** | 산림탄소상쇄 인증실적(320 tCO₂/ha/30yr)이 자연 성장 모델(157)보다 **+103%** 높다 | 인증제도 baseline 가정 검토 필요성을 처음으로 정량화 |
-| **D115** | KAU 배출권이 16개월간 +126% 올라, 산주 의향가격(WTA 17,039원)을 2026년 3~5월 사이 **역사상 처음 돌파** | 자발적 탄소상쇄 참여가 경제적으로 합리적이 된 시점 — 발표 핵심 |
+| **D114** | 산림탄소상쇄 인증실적(320 tCO₂/ha/30yr)이 자연 성장 모델(220)보다 **+45%** 높다 | 인증제도 baseline 가정 검토 필요성을 처음으로 정량화 |
+| **D115** | KAU 배출권이 16개월간 **+79%** 올라(8,670→15,550원), 산주 의향가격(WTA 17,039원)에 **8.7% 차이로 근접 — 돌파 임박** | 자발적 탄소상쇄 참여가 경제적으로 합리적이 되는 임계 도달 직전 — 발표 핵심 |
 | **D122** | 국가 수확표 등급분포가 NFI 실측보다 상위 등급을 **+123%** 과대평가 | 영세 사유림 NPV 가 가정보다 낮을 수 있음 |
 | **D124** | 정우 기후 보정과 임종환 시뮬레이션의 생장 부호가 **정반대** | 모델 간 불일치를 정직하게 노출 |
 | **D126** | 위성 GEDI 가 고밀도 침엽수림을 과소추정(NFI 외부검증 **R²=-0.187**) | 인증=과대, 수확표=과대, 위성=과소 → 3축 교차검증 근거 |
 
 세 추정 방법의 편향이 서로 반대 방향이라는 점이 핵심이다. 보은 산외면 오대리
 (25.6 ha, 인증 8,197 tCO₂)에서 인증을 상한으로, 자연 성장 모델을 하한으로,
-위성 추정을 제3의 독립 측정으로 배치하면, +103% 차이의 원인이 인증의 회계
+위성 추정을 제3의 독립 측정으로 배치하면, +45% 차이의 원인이 인증의 회계
 가정인지 실제 경영 효과인지를 판별할 수 있다.
 
 ---
@@ -177,7 +177,7 @@ from shared.schemas import (
 5. **AI/ML 엔지니어** — LHS + Strategy 패턴 + uncertainty tier
 
 ### Round 2 (3 페르소나, 5/20)
-6. **위성/원격탐사** — **+103% 는 모집단 차이** (자연성장 vs 경영후), **NDVI 시계열 = 발표 카드**, GEDI+S2 triangulation Plan B
+6. **위성/원격탐사** — **+45% 는 모집단 차이** (자연성장 vs 경영후), **NDVI 시계열 = 발표 카드**, GEDI+S2 triangulation Plan B
 7. **영세 산주** — 숫자 1개 큼지막 + 카카오톡 멘트 대본 + 펼치기 분리
 8. **통합자** — **D115 우선 + "KAU 변곡점" 타이틀** + 5분 7슬라이드 구조
 
@@ -220,7 +220,7 @@ module_c/tests/
   test_recommend.py                 7
   test_offset_eligibility.py        7  (8 사업유형)
   test_draft_plan.py                7  (이중 표현)
-  test_validation.py                7  (D114 +103% reference)
+  test_validation.py                7  (D114 +45% reference)
 ─────────────────────────────────────
                                    총 129 tests
 ```
@@ -246,8 +246,8 @@ module_c/tests/
 | D111 → D116 | demo polygon 정정 | 산림학자 SI + 경영자 모달 |
 | D112 | next_actions 구체화 | 경영자: 전화·URL·서류명 |
 | D113 | api_server.py 통합 | AI: BackgroundTasks |
-| **D114** | **carbonregistry 4 검증 case + 학술 발견 #1** | 사용자 658건 제공 → +103% 차이 |
-| **D115** | **KAU 16개월 + WTA 돌파 + 학술 발견 #2** | 16개월 +126%, 2026-03~05 첫 돌파 |
+| **D114** | **carbonregistry 4 검증 case + 학술 발견 #1** | 사용자 658건 제공 → +45% 차이 (모델 220 vs 인증 320) |
+| **D115** | **KAU 16개월 급등 + WTA 돌파 임박 + 학술 발견 #2** | 16개월 +79%(8,670→15,550), WTA 17,039원에 8.7% 미달 |
 | D116 | 6 polygon (Sample 2 + Real 4) | VWorld 실 좌표 확보 |
 
 → 전체: [DECISIONS.md](./DECISIONS.md)
@@ -292,7 +292,7 @@ package = compute_lev_with_plan(stand, user_preference="균형", n_samples=300)
 2. Problem: WTA hurdle 미돌파 시대의 한국 임업
 3. Method: Faustmann-Hartman 한국 변형 + 8 학자 deliberation
 4. **Finding A: D115 KAU 변곡점** ⭐ 핵심 narrative
-5. Finding B: D114 인증-모델 +103% gap
+5. Finding B: D114 인증-모델 +45% gap
 6. Validation: NFI direct lookup + 129 tests + Module A framing
 7. Conclusion + 정책 제언
 

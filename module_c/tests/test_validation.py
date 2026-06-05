@@ -23,11 +23,12 @@ def test_boeun_oedari_validation():
     assert 315 < r["certified_tco2_per_ha_per_30yr"] < 325
 
 
-# [검증] D22 학술 발견 — +103% 차이
-def test_model_vs_certified_103pct_difference():
+# [검증] D114 학술 발견 — 인증이 자연성장 모델보다 +45% 큼
+def test_model_vs_certified_difference():
     r = compare_with_certified("boeun_real_oedari_8197tco2", verbose=False)
-    # 모델 ~157 vs 인증 ~320 = +103%
-    assert 90 < r["difference_pct"] < 120
+    # 모델 220.2 (정우 _lookup_carbon_uptake 30~60년 평균×30) vs 인증 320.2 = +45.4%
+    # (Module B 탄소모델 갱신 후 실측값 — 초기 문서의 +103% 는 구 모델값)
+    assert 40 < r["difference_pct"] < 55
 
 
 # [검증] interpretation 에 학술 해석 포함
@@ -36,12 +37,12 @@ def test_interpretation_has_baseline_note():
     assert "baseline" in r["interpretation"] or "보수" in r["interpretation"]
 
 
-# [검증] 4 case 모두 +100% 근처 (인증사업의 동일 가정)
+# [검증] 4 case 모두 +45% 근처 (인증사업 320 tCO₂/ha 동일 가정)
 def test_all_four_cases_similar_difference():
     results = validate_all_real_cases(verbose=False)
     diffs = [r["difference_pct"] for r in results]
-    # 모두 100-110% 사이 (단일 가정 사용)
-    assert all(90 < d < 120 for d in diffs)
+    # 4 등록사업 모두 인증 320 tCO₂/ha/30yr 동일 → 모델 220.2 대비 +45% 일관
+    assert all(40 < d < 55 for d in diffs)
 
 
 # [검증] summary 보고서

@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS market.kau_daily (
     trqu    BIGINT,                      -- 거래량
     PRIMARY KEY (date, vintage)
 );
-COMMENT ON TABLE market.kau_daily IS 'D23 발견: KAU25 16개월 +126%, WTA 17,039 첫 돌파 2026-03~05';
+COMMENT ON TABLE market.kau_daily IS 'D23 발견: KAU25 16개월 +79.4%(8,670→15,550, 2025-07~2026-03), WTA 17,039원에 8.7% 미달 — 돌파 임박';
 
 
 -- ============================================================

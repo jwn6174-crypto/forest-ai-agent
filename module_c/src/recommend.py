@@ -262,7 +262,7 @@ if __name__ == "__main__":
             "feasibility": True,
             "T_optimal": 60,
             "carbon_revenue": 5_000_000,
-            "kau_breakeven_warning": "KAU 17,200 → 16,300원 이하 시 LEV 음수",
+            "kau_breakeven_warning": "KAU 15,550 → 14,800원 이하 시 LEV 음수",
         },
         "간벌+10년": {
             "npv": 80_000_000,

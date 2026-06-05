@@ -4,8 +4,8 @@
 정우 module_bd 의 7 함수 + 자체 모듈 12 = 19 src 파일.
 
 8 전문가 deliberation 기반 학술 발견 2개:
-- D22: carbonregistry 인증 vs Module C 모델 +103% 차이
-- D23: KAU 16개월 +126%, WTA 17,039원 역사적 첫 돌파 (2026-03~05)
+- D22: carbonregistry 인증(320) vs Module C 모델(220) +45% 차이
+- D23: KAU 16개월 +79.4%(8,670→15,550), WTA 17,039원에 8.7% 미달 — 돌파 임박
 
 Public API:
     >>> from module_c.src import compute_lev, compute_lev_with_plan, get_demo_parcel
