@@ -234,7 +234,7 @@ export default function Home() {
               )}
 
               {/* 면책 문구 */}
-              <p className="shrink-0 text-xs text-forest-500 pb-2 text-center">
+              <p className="shrink-0 text-xs text-forest-300 pb-2 text-center font-medium">
                 본 분석은 시나리오 비교를 위한 추정값이며 정확한 수익을 보장하지 않습니다.
                 가격 가정: KAU {partial?.market?.kauPrice?.toLocaleString()}원/tCO₂ ·
                 할인율 {partial?.market?.discountRate}% · SSP2-4.5 기준

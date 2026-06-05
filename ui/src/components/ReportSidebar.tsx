@@ -287,7 +287,7 @@ export default function ReportSidebar({ data }: { data: PartialResult | null }) 
         </button>
 
         {ready && (
-          <p className="text-[10px] text-forest-600 text-center leading-tight">
+          <p className="text-[10px] text-forest-300 text-center leading-tight font-medium">
             새 탭에서 열린 후<br />Ctrl+P로 PDF 저장
           </p>
         )}
