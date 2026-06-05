@@ -110,7 +110,11 @@ def scenario_feasibility(
         (feasible: bool, note: Optional[str])
     """
     legal_min = rotation_age(species, ownership)
-    harvest_age = age_now + T  # 벌채 시점의 임령
+    # scenario_T() 는 *절대 벌채임령* 을 돌려준다(즉시=age_now, 10년=age_now+10).
+    # 따라서 벌채 시점 임령 = T 그 자체다. age_now+T 로 더하면 age_now 가 이중
+    # 계산되어, 벌기령 미달 임지(예: 30년생 소나무 즉시, 법정 40년)가 잘못
+    # feasible 로 판정된다(test_feasibility_벌기령_미달 회귀). T 를 그대로 쓴다.
+    harvest_age = T  # = 벌채 시점의 임령 (scenario_T 가 이미 절대 임령)
 
     if harvest_age >= legal_min:
         return True, None
