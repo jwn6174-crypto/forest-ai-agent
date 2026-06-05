@@ -14,13 +14,13 @@ function Skeleton() {
   );
 }
 
-function PendingModuleC() {
+function ScenarioUnavailable() {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-8 text-forest-500">
-      <div className="text-3xl opacity-40">⏳</div>
-      <p className="text-sm font-medium text-forest-400">Module C 개발 중</p>
+      <div className="text-3xl opacity-40">⚠️</div>
+      <p className="text-sm font-medium text-forest-400">경제성 분석 결과 없음</p>
       <p className="text-xs text-center leading-relaxed">
-        시나리오 NPV 분석 모듈이 연동되면<br />이 표에 결과가 표시됩니다
+        분석 서버(Module C)에서 시나리오를 받지 못했습니다.<br />Python API 서버 상태를 확인해 주세요.
       </p>
     </div>
   );
@@ -45,7 +45,7 @@ export default function ScenarioTable({
       </div>
 
       {scenarios === null ? (
-        <PendingModuleC />
+        <ScenarioUnavailable />
       ) : scenarios === undefined ? (
         <Skeleton />
       ) : (

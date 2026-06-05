@@ -32,15 +32,23 @@ export function useForestAnalysis() {
       setModuleStatus({ A: "done", B: "loading", C: "idle", D: "idle", E: "idle" });
       setPartial({ pnu, state: data.state });
 
-      // Module B 완료 (1.6초): 성장 예측 노출
+      // Module B 완료 (1.6초): 성장 예측 노출, Module C(경제성) 시작
       await sleep(1600);
-      // Module C는 미구현 — "idle" 유지, scenarios=null 노출
-      setModuleStatus({ A: "done", B: "done", C: "idle", D: "loading", E: "idle" });
-      setPartial((p) => ({ ...p!, growth: data.growth, scenarios: data.scenarios ?? null }));
+      setModuleStatus({ A: "done", B: "done", C: "loading", D: "idle", E: "idle" });
+      setPartial((p) => ({ ...p!, growth: data.growth }));
+
+      // Module C 완료 (0.8초): Faustmann-Hartman 6 시나리오 노출
+      // scenarios 가 비어있으면(백엔드 graceful degradation) C=error 로 표시.
+      await sleep(800);
+      const hasScenarios = Array.isArray(data.scenarios) && data.scenarios.length > 0;
+      setModuleStatus({
+        A: "done", B: "done", C: hasScenarios ? "done" : "error", D: "loading", E: "idle",
+      });
+      setPartial((p) => ({ ...p!, scenarios: data.scenarios ?? null }));
 
       // Module D 완료 (0.6초): 시장 데이터 노출
       await sleep(600);
-      setModuleStatus({ A: "done", B: "done", C: "idle", D: "done", E: "loading" });
+      setModuleStatus((s) => ({ ...s, D: "done", E: "loading" }));
       setPartial((p) => ({
         ...p!,
         market: data.market,
@@ -52,7 +60,8 @@ export function useForestAnalysis() {
       setFullResult(data);
 
       await sleep(400);
-      setModuleStatus({ A: "done", B: "done", C: "idle", D: "done", E: "done" });
+      // C 상태(done|error)는 위에서 정한 실제 값 유지, E 만 done 으로.
+      setModuleStatus((s) => ({ ...s, A: "done", B: "done", D: "done", E: "done" }));
       setIsChatReady(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "분석 중 오류가 발생했습니다");

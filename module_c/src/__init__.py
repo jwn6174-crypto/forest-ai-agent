@@ -203,5 +203,5 @@ __all__ = [
 
 __version__ = "1.1.0-integrated"
 __author__ = "Heedo Choi <zxsa0716@kookmin.ac.kr>"
-__decisions__ = "D101-D127 (ADR 27개)"
-__tests__ = 160  # 19 test 파일 (통합 e2e + stand/ui adapter 포함)
+__decisions__ = "D101-D132 (ADR 32개 — D128-D132 감사·UI 성능)"
+__tests__ = 160  # 19 test 파일 (통합 e2e + stand/ui adapter 포함), +shared 15 = 175

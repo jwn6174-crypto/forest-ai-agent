@@ -763,3 +763,52 @@ union 에 "thinning" 추가는 수범의 한 줄 변경이 필요하다.
 경제성→시장 전체 파이프라인이 ui 까지 흐른다. Module C 본체는 단 한 줄도
 바뀌지 않았으며, 이는 "느슨한 결합이 통합을 단순하게 만든다" 는 설계 원칙의
 실증이다.
+
+---
+
+## D128–D132: 전체 감사·고도화 (2026-06-05) ⭐ UI 준비
+
+통합 완료 후 "모든 코드가 데이터·사실 기반으로 제대로 도는가" 를 전체 감사하면서
+발견한 실행 차단급 결함·방법론 비대칭·데이터 불일치를 정정하고, UI 직전까지의
+성능을 끌어올린 결정들이다. module_c 160 + shared 15 + module_bd 59 = 234 테스트
+통과, `/analyze` end-to-end 약 0.4초 검증.
+
+### D128 — market_snapshot 메모이즈 (성능 치명결함)
+`market_snapshot` 이 `compute_lev_single` 호출마다 data.go.kr 에 KAU 시세를 라이브로
+최대 14회(약 3.8초) 요청하고 있었다. Monte Carlo 300 샘플 × 6 시나리오면 수천 회
+네트워크 요청 → 수십 분 → 사실상 실행 불가. 동일 날짜의 스냅샷은 모든 샘플에서
+같으므로 `lev_core._market_snapshot_cached`(lru_cache)로 날짜별 1회만 실호출한다.
+전체 테스트가 수십 분 행 → 14초로 정상화. api_server 도 같은 메모이즈를 적용한다.
+
+### D129 — HWP 탄소손실 게이팅 대칭화 (방법론)
+`carbon_revenue` 는 KOC>WTA 일 때만 계상하면서도 `hwp_loss`(벌채 후 탄소 reversal)는
+무조건 차감해, 탄소시장에 참여하지 않는 산주에게 손실이 아닌 비용을 물리고 있었다.
+사유림 산주 재무 관점에서 탄소를 수익화하지 않으면 reversal 책임도 없다. 두 항을
+`carbon_monetized` 게이트로 묶어 부호 비대칭을 제거했다. 아울러 `kau_breakeven` 의
+`wta_hurdle/0.7` 하드코딩을 `compute_kau_breakeven` 정식 호출로 교체했다.
+
+### D130 — 기후 보정 결측·외삽 견고화 (버그)
+정우 `growth_predict` 가 보은 SSP126 등에서 미래 기후 입력 결측 시 `volume=None` 을
+돌려줘, 벌채비용만 남아 NPV 가 음수가 됐다. 또 학습 범위를 벗어난 미래 기온에서는
+`climate_correct` 가 외삽되어 SSP245·SSP585 가 동일한 보정을 주고 그 부호가 임종환
+2020 과 반대가 됐다(D124). `lev_core` 의 소비 로직을 고쳐, 결측이면 baseline 궤적의
+마지막 step 전체로 복구하고 외삽(extrap)이면 임종환 multiplier(부호 일관)를 쓰며
+학습 범위 안에서만 정우 보정을 신뢰한다. 기후 민감도가 multiplier 에 정확히 비례.
+
+### D131 — 학술 발견 실데이터 정합 정정 (사실 기반)
+두 headline 발견이 실제 코드·데이터와 어긋나 있었다. (1) D114 는 모델 추정치를
+fallback 근사(157)로 잡아 +103% 로 적었으나, Module B 통합 후 정우 실측
+`_lookup_carbon_uptake`(30~60년 평균 7.34×30=220.2) 기준 차이는 +45.4%(4 case 일관)다.
+(2) D115 는 2026-05 KAU 19,600원 / +126% / '역사적 첫 돌파'로 적었으나 원천 시계열에
+없는 값이었다. 검증 가능한 최신은 2026-03 15,550원으로, 저점 8,670 대비 +79.4%이며
+WTA 17,039원에 8.7% 미달(돌파 임박, 미돌파)이다. README·DECISIONS·notebook·plot
+데이터·schema·api_server 등 30개 파일을 실데이터에 맞춰 정정하고, 옛 값은 '정정
+이력' 노트로만 보존했다. NTFP 고사리·산나물 생산량 100배 단위오류도 함께 정정.
+
+### D132 — growth_predict 메모이즈 (UI 성능)
+UI 직전 점검에서 `/analyze` 가 33.8초였다. growth_predict 가 Monte Carlo 샘플마다
+동일 인자로 재호출(120샘플×6시나리오=720회)되는데, 샘플 간 달라지는 volume·할인율·
+climate multiplier 는 모두 결과에 사후 적용되므로 trajectory 는 동일하다.
+`_growth_predict_cached` 로 인자 기준 1회만 실호출 → `compute_lev_with_plan`(300)이
+13.5초→0.34초. api_server 에 부팅 워밍(@startup)을 더해 첫 요청부터 약 0.4초.
+정확도(LHS 300)는 그대로다. → `../ui/INTEGRATION.md`(수범 전달용 계약·잔여작업).

@@ -41,12 +41,12 @@ function Skeleton() {
   return <div className="h-52 bg-forest-800 rounded animate-pulse" />;
 }
 
-function PendingModuleC() {
+function ScenarioUnavailable() {
   return (
     <div className="h-52 flex flex-col items-center justify-center gap-2 text-forest-500">
-      <div className="text-2xl opacity-40">⏳</div>
-      <p className="text-sm font-medium text-forest-400">Module C 개발 중</p>
-      <p className="text-xs">파레토 분석 모듈 연동 대기</p>
+      <div className="text-2xl opacity-40">⚠️</div>
+      <p className="text-sm font-medium text-forest-400">경제성 분석 결과 없음</p>
+      <p className="text-xs">분석 서버(Module C)에서 시나리오를 받지 못했습니다</p>
     </div>
   );
 }
@@ -66,7 +66,7 @@ export default function ParetoChart({ scenarios }: { scenarios?: Scenario[] | nu
       </div>
 
       {scenarios === null ? (
-        <PendingModuleC />
+        <ScenarioUnavailable />
       ) : !data ? (
         <Skeleton />
       ) : (
