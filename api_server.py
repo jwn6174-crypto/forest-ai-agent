@@ -4,7 +4,10 @@ api_server.py — MOFOM AI Bridge: Python modules ↔ Next.js frontend
 FastAPI 서버.  POST /analyze 엔드포인트로 ForestAnalysisResult JSON 반환.
 
 모듈 연동 현황:
-  Module A  PNU → 임야 상태 (지역별 mock, 실제 위성 모듈 대기)
+  Module A  predict_stand()  ← 연동 완료 (3단 fallback)
+            1순위: VWORLD_KEY 있음 + 래스터 있음 → 실 위성 AGB 추정
+            2순위: 래스터 없음 → PNU 지역 프로파일 mock (데이터 업로드 대기)
+            3순위: 완전 fallback → 기본값
   Module B  growth_predict()   ← 연동 완료
   Module C  Faustmann-Hartman NPV/6 시나리오/Pareto/추천  ← 연동 완료(D127)
             stand_adapter → compute_lev_with_plan → ui_adapter 흐름.
@@ -36,6 +39,31 @@ sys.path.insert(0, str(ROOT))
 from module_bd.src.growth_predict import growth_predict
 from module_bd.src.market_snapshot import market_snapshot
 from module_bd.src.cost_function import cost_function
+
+# Module A — 위성 AGB Nowcasting
+try:
+    from module_a.predict_stand import predict_stand as _predict_stand
+    HAS_MODULE_A = True
+except ImportError:
+    HAS_MODULE_A = False
+
+# Module A: VWorld PNU → polygon WKT
+try:
+    from module_c.src.data_go_kr_api import vworld_pnu_to_geometry
+    HAS_VWORLD = bool(os.environ.get("VWORLD_KEY"))
+except ImportError:
+    HAS_VWORLD = False
+
+# Module A: 래스터 파일 존재 여부
+_RASTER_PATH = ROOT / "module_a" / "data" / "boeun_satellite_features_10m.tif"
+HAS_RASTER = _RASTER_PATH.exists()
+
+_MODULE_A_STATUS = (
+    "predict_stand (live)" if (HAS_MODULE_A and HAS_VWORLD and HAS_RASTER)
+    else "predict_stand (래스터 대기)" if (HAS_MODULE_A and not HAS_RASTER)
+    else "predict_stand (VWORLD_KEY 미설정)" if (HAS_MODULE_A and not HAS_VWORLD)
+    else "mock"
+)
 
 
 @lru_cache(maxsize=4)
@@ -125,6 +153,60 @@ def mock_module_a(pnu: str) -> dict:
     profile["area_ha"]     = round(defaults["area_ha"] + rng.uniform(-0.2, 0.3), 2)
     profile["distance_km"] = defaults["distance_km"] + rng.randint(-2, 5)
     return profile
+
+
+def run_module_a(pnu: str, mock_profile: dict) -> dict:
+    """
+    Module A 3단 fallback.
+
+    1순위: VWORLD_KEY + 래스터 → predict_stand() 실행
+    2순위: 래스터 없음 (데이터 업로드 대기) → mock_profile 반환
+    3순위: 기타 오류 → mock_profile 반환
+
+    Returns
+    -------
+    dict  mock_profile 과 동일한 키 구조.
+          Module A 실행 성공 시 추가 키: agb_per_ha, volume_uncertainty_pct,
+          volume_q05, volume_q95, agb_source="satellite"
+    """
+    if not (HAS_MODULE_A and HAS_VWORLD and HAS_RASTER):
+        return mock_profile  # 아직 데이터 없음 — mock 유지
+
+    try:
+        # PNU → polygon WKT (VWorld 연속지적도)
+        geo_resp = vworld_pnu_to_geometry(pnu)
+        features = (geo_resp.get("response") or {}).get("result", {}).get("featureCollection", {}).get("features", [])
+        if not features:
+            return mock_profile  # 지적도 조회 실패
+
+        from shapely.geometry import shape
+        geom = shape(features[0]["geometry"])
+        geom_wkt = geom.wkt
+
+        # predict_stand 호출
+        result = _predict_stand(
+            geom_wkt=geom_wkt,
+            pnu=pnu,
+            species_dominant=mock_profile["species"],
+            age_estimate=mock_profile["age"],
+        )
+
+        # StandStateEstimate → mock_profile 호환 dict 변환
+        r = result if isinstance(result, dict) else result.__dict__
+        updated = mock_profile.copy()
+        updated.update({
+            "area_ha":              round(r.get("area_ha") or mock_profile["area_ha"], 2),
+            "volume_per_ha":        round(r.get("volume_m3_per_ha") or 0.0, 1),
+            "volume_uncertainty":   round(r.get("volume_q95", 0) - r.get("volume_q05", 0), 1),
+            "agb_per_ha":           round(r.get("agb_mg_per_ha") or 0.0, 1),
+            "carbon_per_ha":        round((r.get("agb_mg_per_ha") or 0.0) * 0.5 * 44 / 12, 1),
+            "agb_source":           "satellite",
+            "data_warning":         r.get("saturation_warning"),
+        })
+        return updated
+    except Exception as e:
+        print(f"[Module A] predict_stand 오류 — mock 사용: {e}")
+        return mock_profile
 
 
 # ─── 등급별 재적 비율 추정 (Module B 출력 보완용) ─────────────────────────────
@@ -443,12 +525,14 @@ async def analyze(req: AnalyzeRequest):
 
     today = date.today().isoformat()
 
-    # ── Module A mock ─────────────────────────────────────────────────────────
-    p           = mock_module_a(pnu)
+    # ── Module A: 위성 AGB 추정 (3단 fallback) ────────────────────────────────
+    mock_p = mock_module_a(pnu)          # 지역 프로파일 (fallback 기반값)
+    p      = run_module_a(pnu, mock_p)   # 1순위: 실위성, 아니면 mock 반환
+
     species     = p["species"]
     site_index  = p["site_index"]
     age_now     = p["age"]
-    area_ha     = p["area_ha"]
+    area_ha     = p.get("area_ha") or p.get("area_ha", mock_p["area_ha"])
     distance_km = p["distance_km"]
     slope_class = p.get("slope", "중")
 
@@ -523,15 +607,30 @@ async def analyze(req: AnalyzeRequest):
     }
 
     # ── ForestState ───────────────────────────────────────────────────────────
-    agb_per_ha        = round(cur_vol * 0.45 * 1.2, 1)
-    stored_co2_per_ha = round(agb_per_ha * 0.5 * 44 / 12, 1)
+    # Module A 실위성 데이터 우선 사용, 없으면 Module B 첫 시점에서 추산
+    if p.get("agb_source") == "satellite":
+        # Module A 실 추정값
+        agb_per_ha        = p["agb_per_ha"]
+        stored_co2_per_ha = p["carbon_per_ha"]
+        vol_per_ha        = p.get("volume_per_ha") or round(cur_vol, 1)
+        vol_uncertainty   = p.get("volume_uncertainty") or round(vol_per_ha * 0.15, 1)
+        a_data_method     = "satellite"
+        a_data_warning    = p.get("data_warning")
+    else:
+        # Module B 첫 시점 기반 추산 (fallback)
+        agb_per_ha        = round(cur_vol * 0.45 * 1.2, 1)
+        stored_co2_per_ha = round(agb_per_ha * 0.5 * 44 / 12, 1)
+        vol_per_ha        = round(cur_vol, 1)
+        vol_uncertainty   = round(cur_vol * 0.15, 1)
+        a_data_method     = data_method
+        a_data_warning    = data_warning
 
     forest_state = {
         "pnu":               pnu,
         "species":           species,
         "estimatedAge":      age_now,
-        "volumePerHa":       round(cur_vol, 1),
-        "volumeUncertainty": round(cur_vol * 0.15, 1),
+        "volumePerHa":       vol_per_ha,
+        "volumeUncertainty": vol_uncertainty,
         "carbonPerHa":       stored_co2_per_ha,
         "agbPerHa":          agb_per_ha,
         "areaHa":            area_ha,
@@ -542,8 +641,8 @@ async def analyze(req: AnalyzeRequest):
         "tmaiNow":    round(cur.get("tmai_m3_per_ha_yr") or 0.0, 2),
         "heightNow":  round(cur.get("height") or 0.0, 1),
         "nPerHaNow":  round(cur.get("n_per_ha") or 0.0, 0),
-        "dataMethod": data_method,
-        "dataWarning": data_warning,
+        "dataMethod": a_data_method,
+        "dataWarning": a_data_warning,
     }
 
     # ── Module D: MarketData ──────────────────────────────────────────────────
@@ -631,7 +730,7 @@ async def health():
     return {
         "status":  "ok",
         "modules": {
-            "A": "mock",
+            "A": _MODULE_A_STATUS,
             "B": "growth_predict (live)",
             "C": "Faustmann-Hartman (live)",
             "D": "market_snapshot (live)",
