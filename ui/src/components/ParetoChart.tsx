@@ -21,11 +21,11 @@ const SCENARIO_COLORS: Record<string, string> = {
 const sc = (id: string) => SCENARIO_COLORS[id] ?? "#4a5568";
 
 const SCENARIO_SHORT: Record<string, string> = {
-  immediate: "즉시 벌채",
-  five_year: "5년 후 벌채",
-  ten_year:  "10년 후 벌채",
-  koc:       "탄소상쇄(KOC)",
-  ntfp:      "임산물 병행",
+  immediate: "즉시",
+  five_year: "5년 후",
+  ten_year:  "10년 후",
+  koc:       "KOC",
+  ntfp:      "임산물",
   thinning:  "간벌+10년",
 };
 
@@ -54,8 +54,8 @@ function prepareData(scenarios: Scenario[]): PPoint[] {
       const dx = Math.abs(pts[i].x - pts[j].x);
       const dy = Math.abs(pts[i].y - pts[j].y);
       if (dx < X_THRESH && dy / yRange < Y_THRESH) {
-        pts[i] = { ...pts[i], x: pts[i].x - 0.03 };
-        pts[j] = { ...pts[j], x: pts[j].x + 0.03 };
+        pts[i] = { ...pts[i], x: pts[i].x - 0.05 };
+        pts[j] = { ...pts[j], x: pts[j].x + 0.05 };
       }
     }
   }
@@ -168,8 +168,8 @@ export default function ParetoChart({ scenarios }: { scenarios?: Scenario[] | nu
       ) : !data ? (
         <Skeleton />
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <ScatterChart margin={{ top: 24, right: 52, left: 10, bottom: 18 }}>
+        <ResponsiveContainer width="100%" height={260}>
+          <ScatterChart margin={{ top: 28, right: 60, left: 10, bottom: 22 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1f3620" />
             <XAxis
               type="number" dataKey="x"

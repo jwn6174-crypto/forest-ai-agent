@@ -121,14 +121,18 @@ export default function Home() {
             <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-y-auto">
               <ForestStateCard state={partial?.state} />
 
-              {/* 차트 2×2 */}
+              {/* 차트 Row 1: NPV 바차트 + 탄소곡선 */}
               <div className="grid grid-cols-2 gap-3 shrink-0">
                 <ScenarioNPVChart scenarios={partial?.scenarios} />
                 <CarbonCurveChart growth={partial?.growth} />
               </div>
-              <div className="grid grid-cols-2 gap-3 shrink-0">
+
+              {/* 차트 Row 2: 파레토(2/3) + 등급분포(1/3) */}
+              <div className="grid grid-cols-3 gap-3 shrink-0">
+                <div className="col-span-2">
+                  <ParetoChart scenarios={partial?.scenarios} />
+                </div>
                 <GradeDistributionChart growth={partial?.growth} />
-                <ParetoChart scenarios={partial?.scenarios} />
               </div>
 
               {/* 시나리오 표 */}
