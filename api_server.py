@@ -5,9 +5,9 @@ FastAPI 서버.  POST /analyze 엔드포인트로 ForestAnalysisResult JSON 반�
 
 모듈 연동 현황:
   Module A  PNU → 임야 상태 (지역별 mock, 실제 위성 모듈 대기)
-  Module B  growth_predict()   ← 연동 완료
-  Module C  NPV/시나리오        ← 미구현 (팀원 개발 대기, scenarios=null 반환)
-  Module D  market_snapshot(), cost_function()  ← 연동 완료
+  Module B  growth_predict()                      ← 연동 완료
+  Module C  compute_scenarios_npv()               ← 연동 완료 (Faustmann-Hartman + Monte Carlo)
+  Module D  market_snapshot(), cost_function()   ← 연동 완료
 
 실행:
   python api_server.py
@@ -17,6 +17,7 @@ FastAPI 서버.  POST /analyze 엔드포인트로 ForestAnalysisResult JSON 반�
 
 import sys
 import random
+import numpy as np
 from pathlib import Path
 from datetime import date
 
@@ -31,8 +32,9 @@ sys.path.insert(0, str(ROOT))
 
 from module_bd.src.growth_predict import growth_predict
 from module_bd.src.market_snapshot import market_snapshot
+from module_bd.src.cost_function import cost_function
 
-app = FastAPI(title="MOFOM AI Bridge", version="1.0.0")
+app = FastAPI(title="MOFOM AI Bridge", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -87,7 +89,7 @@ def mock_module_a(pnu: str) -> dict:
 # ─── 등급별 재적 비율 추정 (Module B 출력 보완용) ─────────────────────────────
 
 def estimate_grade_dist(dbh_cm: float) -> dict:
-    """흉고직경(cm) → 6등급 재적 비율(%) 추정. GrowthForecast.gradeDistributionByYear 용."""
+    """흉고직경(cm) → 6등급 재적 비율(%) 추정."""
     if dbh_cm < 10:
         return {"teukYongJae": 0,  "grade1":  0, "grade2":  0, "grade3":  5, "wonJuJae": 25, "wonRyoJae": 70}
     if dbh_cm < 14:
@@ -101,6 +103,280 @@ def estimate_grade_dist(dbh_cm: float) -> dict:
     if dbh_cm < 30:
         return {"teukYongJae": 4,  "grade1": 30, "grade2": 32, "grade3": 24, "wonJuJae":  9, "wonRyoJae":  1}
     return     {"teukYongJae": 7,  "grade1": 40, "grade2": 30, "grade3": 18, "wonJuJae":  4, "wonRyoJae":  1}
+
+
+# ─── Module C: Faustmann-Hartman NPV + Monte Carlo ───────────────────────────
+
+# 수종별 NTFP 기대 수입 (원/ha/yr, 산림조합 사례 기반 추정)
+NTFP_BY_SPECIES = {
+    "강원지방소나무": 750_000,   # 송이버섯 잠재력
+    "잣나무":        1_200_000,  # 잣 수확 (높은 가치)
+    "낙엽송":          280_000,
+    "리기다소나무":    180_000,
+    "편백":            420_000,
+}
+NTFP_DEFAULT = 350_000
+
+
+def compute_scenarios_npv(
+    trajectory: list,
+    market_raw: dict,
+    area_ha: float,
+    distance_km: float,
+    slope_class: str,
+    age_now: int,
+    species: str,
+    n_sim: int = 2000,
+    seed: int = 42,
+) -> tuple:
+    """
+    Module C: 5개 시나리오 NPV Monte Carlo 시뮬레이션.
+
+    Parameters
+    ----------
+    trajectory   : growth_predict() 출력 (dt, volume, dbh, carbon_uptake_rate …)
+    market_raw   : market_snapshot() 출력
+    area_ha      : 임야 면적 (ha)
+    distance_km  : 임도까지 거리 (km)
+    slope_class  : 경사 (완/중/급)
+    age_now      : 현재 임령
+    species      : 수종명
+    n_sim        : Monte Carlo 샘플 수
+    seed         : 재현성 시드
+
+    Returns
+    -------
+    (scenarios: list[dict], best_id: str)
+    """
+    rng_np = np.random.default_rng(seed)
+
+    # 시장 파라미터
+    timber_prices = market_raw.get("timber_price") or {}
+    species_prices = (market_raw.get("timber_price_by_species") or {}).get(species, {})
+    active_prices  = species_prices if species_prices else timber_prices
+
+    TP = {
+        "teukYongJae": active_prices.get("특용재") or 294_300,
+        "grade1":      active_prices.get("1등급")  or 199_700,
+        "grade2":      active_prices.get("2등급")  or 173_400,
+        "grade3":      active_prices.get("3등급")  or 135_800,
+        "wonJuJae":    active_prices.get("원주재") or  85_700,
+        "wonRyoJae":   active_prices.get("원료재") or  33_800,
+    }
+
+    koc_price     = float(market_raw.get("koc_estimate") or 12_040)
+    discount_rate = float(market_raw.get("discount_rate") or 0.05)
+    r             = discount_rate
+
+    # ── 보조 함수 ─────────────────────────────────────────────────────────────
+
+    def grade_unit_price(grade_dist: dict) -> float:
+        """등급별 가중 평균 목재 단가 (원/m³)."""
+        total = sum(grade_dist.values()) or 100.0
+        return sum(
+            (grade_dist.get(k, 0) / total) * TP[k]
+            for k in TP
+        )
+
+    def get_pt(dt_target: int) -> dict:
+        """trajectory에서 dt_target에 가장 가까운 시점 반환."""
+        return min(trajectory, key=lambda p: abs(p["dt"] - dt_target))
+
+    def carbon_pv_samples(T: int, koc_samples: np.ndarray) -> np.ndarray:
+        """
+        0→T년 동안 탄소 크레딧 현재가치의 Monte Carlo 배열 (원).
+        각 trajectory 구간의 carbon_uptake_rate를 선형 보간 적용.
+        koc_samples: shape (n_sim,)
+        """
+        pv = np.zeros(n_sim)
+        pts_sorted = sorted(trajectory, key=lambda p: p["dt"])
+        for i in range(1, len(pts_sorted)):
+            prev_dt = pts_sorted[i - 1]["dt"]
+            curr_dt = pts_sorted[i]["dt"]
+            if curr_dt > T:
+                curr_dt = T
+            if prev_dt >= T:
+                break
+            rate = pts_sorted[i].get("carbon_uptake_rate") or 0.0  # tCO₂/ha/yr
+            annual = rate * area_ha
+            for yr in range(prev_dt + 1, curr_dt + 1):
+                pv += annual * koc_samples / (1 + r) ** yr
+        return pv
+
+    def lognorm_samples(median: float, cv: float) -> np.ndarray:
+        """log-normal 샘플 (중앙값=median, CV=cv)."""
+        sigma = np.sqrt(np.log(1 + cv ** 2))
+        mu    = np.log(max(median, 1.0)) - 0.5 * sigma ** 2
+        return rng_np.lognormal(mu, sigma, n_sim)
+
+    def timber_costs(total_vol: float) -> tuple:
+        """벌채+조림 비용 (원). (total, regen) 반환."""
+        try:
+            c = cost_function(
+                volume_m3=total_vol,
+                area_ha=area_ha,
+                distance_to_road_km=distance_km,
+                action="clearcut",
+                slope_class=slope_class,
+            )
+            return float(c["total"]), float(c["breakdown"]["regen"])
+        except Exception:
+            base = total_vol * 90_000 + area_ha * 6_500_000
+            return base, area_ha * 6_500_000
+
+    # ── 시나리오별 NPV 계산 ────────────────────────────────────────────────────
+
+    def calc_timber(dt: int) -> dict:
+        """dt년 후 개벌 시나리오."""
+        pt = get_pt(dt)
+        total_vol = (pt.get("volume") or 0.0) * area_ha
+        base_unit = grade_unit_price(estimate_grade_dist(pt.get("dbh") or 0.0))
+        base_cost, regen_c = timber_costs(total_vol)
+
+        price_samp = lognorm_samples(base_unit, 0.20)
+        koc_samp   = lognorm_samples(koc_price, 0.30)
+        cost_samp  = lognorm_samples(base_cost, 0.15)
+
+        timber_rev = total_vol * price_samp            # 원
+        carb_pv    = carbon_pv_samples(dt, koc_samp)  # 원
+
+        net = timber_rev - cost_samp + carb_pv
+        npvs = (net / (1 + r) ** dt) if dt > 0 else net
+
+        return {
+            "npvs":         npvs / 10_000,   # 만원
+            "timber_rev":   float(np.median(timber_rev)) / 10_000,
+            "harvest_cost": float(base_cost - regen_c) / 10_000,
+            "regen_cost":   float(regen_c) / 10_000,
+            "carbon_rev":   float(np.median(carb_pv)) / 10_000,
+            "ntfp_rev":     0.0,
+        }
+
+    def calc_koc() -> dict:
+        """30년간 탄소 크레딧 (벌채 없음)."""
+        koc_samp = lognorm_samples(koc_price, 0.30)
+        carb_pv  = carbon_pv_samples(30, koc_samp)
+        npvs     = carb_pv / 10_000
+
+        return {
+            "npvs":         npvs,
+            "timber_rev":   0.0,
+            "harvest_cost": 0.0,
+            "regen_cost":   0.0,
+            "carbon_rev":   float(np.median(carb_pv)) / 10_000,
+            "ntfp_rev":     0.0,
+        }
+
+    def calc_ntfp() -> dict:
+        """30년간 NTFP 수입 + 탄소 크레딧 (벌채 없음)."""
+        ntfp_base = NTFP_BY_SPECIES.get(species, NTFP_DEFAULT)  # 원/ha/yr
+        koc_samp  = lognorm_samples(koc_price, 0.30)
+        ntfp_samp = lognorm_samples(ntfp_base * area_ha, 0.35)  # 연간 NTFP
+
+        ntfp_pv = np.zeros(n_sim)
+        for yr in range(1, 31):
+            ntfp_pv += ntfp_samp / (1 + r) ** yr
+
+        carb_pv = carbon_pv_samples(30, koc_samp)
+        npvs    = (ntfp_pv + carb_pv) / 10_000
+
+        return {
+            "npvs":         npvs,
+            "timber_rev":   0.0,
+            "harvest_cost": 0.0,
+            "regen_cost":   0.0,
+            "carbon_rev":   float(np.median(carb_pv)) / 10_000,
+            "ntfp_rev":     float(np.median(ntfp_pv)) / 10_000,
+        }
+
+    # ── 5개 시나리오 실행 ─────────────────────────────────────────────────────
+
+    specs = {
+        "immediate": {
+            "fn": lambda: calc_timber(0),
+            "name": "즉시 벌채",
+            "desc": "현재 재적으로 즉시 개벌. 유동성 최대, 성장 잠재력 포기.",
+            "harvest_dt": 0,
+            "pareto_x": 1.0,
+        },
+        "five_year": {
+            "fn": lambda: calc_timber(5),
+            "name": "5년 후 벌채",
+            "desc": "5년 성장 후 개벌. 재적·흉고직경 향상으로 수익 개선.",
+            "harvest_dt": 5,
+            "pareto_x": 0.75,
+        },
+        "ten_year": {
+            "fn": lambda: calc_timber(10),
+            "name": "10년 후 벌채",
+            "desc": "10년 성장 후 개벌. 등급비율 최적화로 고부가가치 목재 비율 증가.",
+            "harvest_dt": 10,
+            "pareto_x": 0.5,
+        },
+        "koc": {
+            "fn": calc_koc,
+            "name": "KOC 탄소상쇄",
+            "desc": "벌채 없이 30년간 탄소 크레딧 수익. 생태계 서비스 보전.",
+            "harvest_dt": None,
+            "pareto_x": 0.1,
+        },
+        "ntfp": {
+            "fn": calc_ntfp,
+            "name": "비목재임산물 (NTFP)",
+            "desc": "30년간 비목재임산물 수취 + 탄소. 지속적 수입, 장기 운영 필요.",
+            "harvest_dt": None,
+            "pareto_x": 0.0,
+        },
+    }
+
+    eligible = age_now >= 20 and (get_pt(0).get("volume") or 0.0) > 50
+
+    results = {}
+    for sid, spec in specs.items():
+        res = spec["fn"]()
+        npvs = res["npvs"]  # np.ndarray (만원)
+        results[sid] = {**res, **spec, "npvs": npvs}
+
+    # 최고 NPV 시나리오 (p50 기준)
+    best_id = max(results, key=lambda k: float(np.median(results[k]["npvs"])))
+
+    scenarios_out = []
+    for sid, res in results.items():
+        npvs = res["npvs"]
+        p5   = round(float(np.percentile(npvs,  5)))
+        p50  = round(float(np.median(npvs)))
+        p95  = round(float(np.percentile(npvs, 95)))
+        bprob = round(float(np.mean(npvs < 0)), 3)
+
+        harvest_dt = res["harvest_dt"]
+        harvest_year = (age_now + harvest_dt) if harvest_dt is not None else None
+
+        scenarios_out.append({
+            "id":          sid,
+            "name":        res["name"],
+            "description": res["desc"],
+            "harvestYear": harvest_year,
+            "npv": {
+                "p5":              p5,
+                "p50":             p50,
+                "p95":             p95,
+                "bankruptcyProb":  bprob,
+            },
+            "timberRevenue": round(res["timber_rev"]),
+            "carbonRevenue": round(res["carbon_rev"]),
+            "harvestCost":   round(res["harvest_cost"]),
+            "regenCost":     round(res["regen_cost"]),
+            "ntfpRevenue":   round(res["ntfp_rev"]),
+            "kocEligible":   eligible and sid == "koc",
+            "kocMethodology": (
+                "임목탄소흡수량 방법론 (KFCC-AR-001)"
+                if eligible and sid == "koc" else None
+            ),
+            "paretoX":    res["pareto_x"],
+            "recommended": sid == best_id,
+        })
+
+    return scenarios_out, best_id
 
 
 # ─── Request Model ────────────────────────────────────────────────────────────
@@ -125,6 +401,8 @@ async def analyze(req: AnalyzeRequest):
     site_index  = p["site_index"]
     age_now     = p["age"]
     area_ha     = p["area_ha"]
+    distance_km = p["distance_km"]
+    slope_class = p.get("slope", "중")
 
     # ── Module D: 시장 데이터 ─────────────────────────────────────────────────
     try:
@@ -178,7 +456,6 @@ async def analyze(req: AnalyzeRequest):
         cum_carbon.append(round(running, 2))
         prev_rel = rel
 
-    # Module B 전체 trajectory 필드 추출
     data_method  = cur.get("method", "exact")
     data_warning = cur.get("warning")
 
@@ -189,7 +466,6 @@ async def analyze(req: AnalyzeRequest):
         "carbonSequestration":     [round(pt.get("carbon_uptake_rate") or 0.0, 3) for pt in trajectory],
         "gradeDistributionByYear": [estimate_grade_dist(pt.get("dbh") or cur_dbh) for pt in trajectory],
         "climateScenario":         "SSP1-2.6",
-        # Module B 전달 필드
         "dbhTrajectory":    [round(pt.get("dbh") or 0.0, 1) for pt in trajectory],
         "heightTrajectory": [round(pt.get("height") or 0.0, 1) for pt in trajectory],
         "nPerHaTrajectory": [round(pt.get("n_per_ha") or 0.0, 0) for pt in trajectory],
@@ -199,7 +475,7 @@ async def analyze(req: AnalyzeRequest):
     }
 
     # ── ForestState ───────────────────────────────────────────────────────────
-    agb_per_ha        = round(cur_vol * 0.45 * 1.2, 1)  # 용적밀도 × BEF (침엽수)
+    agb_per_ha        = round(cur_vol * 0.45 * 1.2, 1)
     stored_co2_per_ha = round(agb_per_ha * 0.5 * 44 / 12, 1)
 
     forest_state = {
@@ -215,7 +491,6 @@ async def analyze(req: AnalyzeRequest):
         "forestType":        p["forest_type"],
         "siteIndex":         site_index,
         "coordinates":       {"lat": p["lat"], "lng": p["lng"]},
-        # Module B 현재 시점 추가 필드
         "tmaiNow":    round(cur.get("tmai_m3_per_ha_yr") or 0.0, 2),
         "heightNow":  round(cur.get("height") or 0.0, 1),
         "nPerHaNow":  round(cur.get("n_per_ha") or 0.0, 0),
@@ -256,12 +531,21 @@ async def analyze(req: AnalyzeRequest):
         ),
     }
 
-    # ── Module C: 시나리오 NPV — 미구현 ──────────────────────────────────────
-    # Module C 개발 완료 후 아래를 교체:
-    #   scenarios = module_c.compute_scenarios(forest_state, growth_forecast, market_data)
-    #   recommendation = module_c.recommend(scenarios)
-    scenarios     = None   # Module C 미구현
-    recommendation = None  # Module C 미구현
+    # ── Module C: 시나리오 NPV 계산 ───────────────────────────────────────────
+    try:
+        scenarios, recommendation = compute_scenarios_npv(
+            trajectory=trajectory,
+            market_raw=market,
+            area_ha=area_ha,
+            distance_km=distance_km,
+            slope_class=slope_class,
+            age_now=age_now,
+            species=species,
+        )
+    except Exception as e:
+        # Module C 오류 시 null 반환 (UI가 graceful fallback 처리)
+        scenarios      = None
+        recommendation = None
 
     return {
         "pnu":               pnu,
@@ -284,8 +568,8 @@ async def health():
         "modules": {
             "A": "mock",
             "B": "growth_predict (live)",
-            "C": "pending",
-            "D": "market_snapshot (live)",
+            "C": "compute_scenarios_npv (live)",
+            "D": "market_snapshot + cost_function (live)",
         },
     }
 

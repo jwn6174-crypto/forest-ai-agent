@@ -5,11 +5,11 @@ const client = new Anthropic();
 
 function buildSystemPrompt(ctx: ForestAnalysisResult): string {
   const s = ctx.state;
-  const best = ctx.scenarios.find((sc) => sc.recommended);
-  const bestName = best?.name ?? "10년 후 벌채";
+  const best = ctx.scenarios?.find((sc) => sc.recommended);
+  const bestName = best?.name ?? ctx.recommendation ?? "—";
   const bestNpv = best?.npv.p50 ?? 0;
 
-  const scenarioLines = ctx.scenarios
+  const scenarioLines = (ctx.scenarios ?? [])
     .map(
       (sc) =>
         `  (${sc.name}): 중앙값 ${sc.npv.p50.toLocaleString()}만원 (범위: ${sc.npv.p5.toLocaleString()}~${sc.npv.p95.toLocaleString()}만원)${sc.recommended ? " ✓권장" : ""}`

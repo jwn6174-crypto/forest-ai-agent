@@ -108,9 +108,9 @@ export interface ForestAnalysisResult {
   analyzedAt: string;
   state: ForestState;
   growth: GrowthForecast;
-  scenarios: Scenario[];
+  scenarios: Scenario[] | null;  // null = Module C 오류 fallback
   market: MarketData;
-  recommendation: string; // 권장 시나리오 ID
+  recommendation: string | null; // 권장 시나리오 ID
   offsetEligibility: OffsetEligibility;
 }
 
