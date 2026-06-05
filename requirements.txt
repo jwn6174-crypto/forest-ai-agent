@@ -1,0 +1,42 @@
+# 다목적 산림경영 AI Agent — Python 의존성
+# 코드 import 스캔으로 도출, 괄호 안은 검증된 설치 버전(2026-06-05).
+# 설치:  pip install -r requirements.txt
+#
+# 구조: [코어]만 있으면 api_server + Module B·C·D 데모(/analyze)와 전체
+# 테스트가 돈다. [Module A]·[개발]은 선택이며, 없어도 시스템은 mock·fallback
+# 으로 정상 기동한다(Module A 위성은 raster·키 없으면 자동 mock).
+
+# ── 코어 (필수 — api_server + Module B·C·D 데모 + 테스트) ──────────────
+fastapi>=0.115            # api_server (검증 0.136.3)
+uvicorn>=0.30            # ASGI 서버 (0.48.0)
+pydantic>=2.7           # 스키마 (2.13.3)
+pandas>=2.2             # 데이터 처리 (2.3.3)
+numpy>=1.26             # 수치 (2.4.3)
+scipy>=1.11             # LHS·통계 분포 (1.17.1)
+pyarrow>=15.0           # parquet 엔진 — 임분수확표·KOFPI 로드 (24.0.0)
+requests>=2.31          # data.go.kr·VWorld API (2.33.1)
+python-dotenv>=1.0      # .env 로드 (1.2.2)
+pdfplumber>=0.11        # module_bd 비용·RAG PDF 파싱 (0.11.9)
+scikit-learn>=1.4       # climate_correct 회귀 (1.8.0)
+joblib>=1.3             # 학습 모델 로드 (1.5.3)
+openpyxl>=3.1           # xlsx 데이터 (3.1.5)
+
+# ── Module A (위성 AGB — 선택; 보은 raster + quantile-forest 필요) ─────
+# 이 묶음과 module_a/data/boeun_satellite_features_10m.tif(541MB, GEE export
+# 또는 `python module_a/download_data.py`)가 있어야 Module A 가 'live' 로 돈다.
+# 없으면 api_server 가 자동으로 mock 으로 폴백한다.
+quantile-forest>=1.3    # QRF 분위수 회귀 (수범 지적 미설치 항목)
+rasterio>=1.3           # 위성 raster I/O (1.5.0)
+geopandas>=0.14         # 폴리곤 처리 (1.1.3)
+shapely>=2.0            # WKT 지오메트리 (2.1.2)
+pyproj>=3.6             # 좌표계 변환 (3.7.2)
+lightgbm>=4.0           # 보조 모델 (4.6.0)
+earthaccess>=0.11       # NASA GEDI 라이다 접근 (0.17.0)
+# earthengine-api>=1.0  # GEE 추출 스크립트용 (ee) — 데이터 재생성 시에만
+
+# ── 개발·노트북·데이터 재생성 (선택) ──────────────────────────────────
+pytest>=8.0             # 테스트 (9.0.3)
+matplotlib>=3.8         # 그림·노트북 (3.10.8)
+# beautifulsoup4>=4.12  # 일부 수집 스크립트
+# camelot-py>=0.11      # PDF 표 추출(데이터 재생성)
+# python-docx>=1.1      # 보고서 생성
