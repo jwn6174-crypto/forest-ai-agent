@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LabelList,
 } from "recharts";
 
 const SCENARIO_COLORS: Record<string, string> = {
@@ -21,12 +20,22 @@ const SCENARIO_COLORS: Record<string, string> = {
 };
 const sc = (id: string) => SCENARIO_COLORS[id] ?? "#4a5568";
 
+// 2줄 짧은 이름 (차트 공간 절약)
+const SCENARIO_SHORT: Record<string, [string, string]> = {
+  immediate:  ["즉시", "벌채"],
+  five_year:  ["5년 후", "벌채"],
+  ten_year:   ["10년 후", "벌채"],
+  koc:        ["탄소상쇄", "(KOC)"],
+  ntfp:       ["임산물", "병행"],
+  thinning:   ["간벌", "+10년"],
+};
+
 const CustomTooltip = ({
   active,
   payload,
 }: {
   active?: boolean;
-  payload?: { payload: Scenario & { y: number } }[];
+  payload?: { payload: Scenario & { x: number; y: number } }[];
 }) => {
   if (!active || !payload?.[0]) return null;
   const d = payload[0].payload;
@@ -35,9 +44,70 @@ const CustomTooltip = ({
       <p className="font-semibold text-forest-100">{d.name}</p>
       <p className="text-forest-400 mt-0.5">유동성: {(d.paretoX * 100).toFixed(0)}%</p>
       <p className="text-forest-400">NPV(중앙): {d.npv.p50.toLocaleString()}만원</p>
+      {d.recommended && <p className="text-forest-300 font-medium mt-1">✓ 권장 시나리오</p>}
     </div>
   );
 };
+
+// CustomDot: 점 + 레이블 위치를 동적으로 결정
+function CustomDot(props: {
+  cx?: number;
+  cy?: number;
+  payload?: Scenario & { x: number; y: number };
+  chartHeight?: number;
+}) {
+  const { cx, cy, payload } = props;
+  if (cx == null || cy == null || !payload) return null;
+
+  const id = payload.id;
+  const color = sc(id);
+  const recommended = payload.recommended;
+  const r = recommended ? 10 : 7;
+  const [line1, line2] = SCENARIO_SHORT[id] ?? [payload.name, ""];
+
+  // 상단 여백(30px) 이내면 레이블을 아래쪽에, 아니면 위쪽에
+  const labelAbove = cy > 35;
+  const baseY = labelAbove ? cy - r - 4 : cy + r + 13;
+  const lineH = 12;
+
+  // 우측 끝 포인트는 레이블을 왼쪽으로 이동
+  const isRightEdge = payload.paretoX > 0.88;
+  const anchor = isRightEdge ? "end" : "middle";
+  const dx = isRightEdge ? -r - 2 : 0;
+
+  return (
+    <g>
+      {/* 점 */}
+      <circle cx={cx} cy={cy} r={r} fill={color} opacity={0.9} />
+      {recommended && (
+        <circle
+          cx={cx} cy={cy} r={r + 4}
+          fill="none" stroke={color} strokeWidth={1.5} opacity={0.4}
+        />
+      )}
+      {/* 라인1 */}
+      <text
+        x={cx + dx} y={labelAbove ? baseY : baseY}
+        textAnchor={anchor} fontSize={10} fill={color}
+        fontWeight={recommended ? 700 : 400}
+        style={{ pointerEvents: "none" }}
+      >
+        {line1}
+      </text>
+      {/* 라인2 */}
+      {line2 && (
+        <text
+          x={cx + dx} y={(labelAbove ? baseY : baseY) + lineH}
+          textAnchor={anchor} fontSize={10} fill={color}
+          fontWeight={recommended ? 700 : 400}
+          style={{ pointerEvents: "none" }}
+        >
+          {line2}
+        </text>
+      )}
+    </g>
+  );
+}
 
 function Skeleton() {
   return <div className="h-52 bg-forest-800 rounded animate-pulse" />;
@@ -73,7 +143,7 @@ export default function ParetoChart({ scenarios }: { scenarios?: Scenario[] | nu
         <Skeleton />
       ) : (
         <ResponsiveContainer width="100%" height={220}>
-          <ScatterChart margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+          <ScatterChart margin={{ top: 28, right: 40, left: 10, bottom: 18 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1f3620" />
             <XAxis
               type="number"
@@ -86,7 +156,7 @@ export default function ParetoChart({ scenarios }: { scenarios?: Scenario[] | nu
               label={{
                 value: "즉시 현금화 가능성 →",
                 position: "insideBottom",
-                offset: -2,
+                offset: -4,
                 style: { fontSize: 10, fill: "#4a7c50" },
               }}
             />
@@ -111,15 +181,8 @@ export default function ParetoChart({ scenarios }: { scenarios?: Scenario[] | nu
                 key={s.id}
                 data={[s]}
                 fill={sc(s.id)}
-                opacity={0.9}
-                r={s.recommended ? 10 : 7}
-              >
-                <LabelList
-                  dataKey="name"
-                  position="top"
-                  style={{ fontSize: 10, fill: sc(s.id) }}
-                />
-              </Scatter>
+                shape={(p: object) => <CustomDot {...(p as { cx?: number; cy?: number; payload?: Scenario & { x: number; y: number } })} />}
+              />
             ))}
           </ScatterChart>
         </ResponsiveContainer>
