@@ -1,0 +1,142 @@
+[project]
+name = "module_c"
+version = "1.0.0"
+description = "Faustmann-Hartman LEV core — 다목적 산림경영 AI Agent (충북 보은 파일럿)"
+authors = [{name = "Heedo Choi", email = "zxsa0716@kookmin.ac.kr"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = [
+    "Faustmann-Hartman", "LEV", "forest management", "carbon offset",
+    "KAU", "Korea forestry", "산림탄소상쇄", "벌기령",
+]
+
+dependencies = [
+    "pydantic>=2.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "pdfplumber>=0.10",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "ruff>=0.6",
+    "mypy>=1.8",
+]
+plan_b = [
+    "earthaccess>=0.9",
+    "earthengine-api>=0.1",
+    "h5py>=3.10",
+]
+
+[project.urls]
+Repository = "https://github.com/jwn6174-crypto/forest-ai-agent"
+"Bug Tracker" = "https://github.com/jwn6174-crypto/forest-ai-agent/issues"
+
+# ============================================================
+# ruff — lint + format
+# ============================================================
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "data/", "notebooks/", "diagnose/",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "W",      # pycodestyle warnings
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "PL",     # pylint subset
+    "RUF",    # ruff-specific
+]
+ignore = [
+    "E501",   # line too long (Korean 주석 길어짐)
+    "PLR0913",  # too many arguments
+    "PLR2004",  # magic value
+    "PLR0915",  # too many statements
+    "PLR0912",  # too many branches
+    "B008",   # function calls in default arg (FastAPI 패턴)
+    "RUF001", # ambiguous Unicode (Korean character)
+    "RUF002", # ambiguous Unicode docstring
+    "RUF003", # ambiguous Unicode comment
+    "UP006",  # PEP 585 — keep typing module for compatibility (3.11+)
+    "UP007",  # PEP 604 — keep Optional for clarity
+    "UP035",  # typing.Dict deprecated — 의도된 디자인 (3.11 호환)
+    "PLC0415", # import inside function — lazy import 의도 (정우 module_bd fallback)
+    "B007",    # loop variable unused — 의도된 패턴 (dict 키 iteration)
+    "PLC0206", # extracting from dict — 가독성 의도
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402", "PLR2004"]
+"scripts/*" = ["E402"]
+"src/__init__.py" = ["F401", "F403"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ============================================================
+# mypy — type check (점진적 strict)
+# ============================================================
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = false  # 정우 모듈 typing 부분 적용 — 점진적
+warn_unused_configs = true
+disallow_untyped_defs = false  # 점진적
+ignore_missing_imports = true   # numpy, scipy 등
+exclude = ["data/", "notebooks/", "diagnose/"]
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "numpy.*", "pdfplumber.*", "requests.*"]
+ignore_missing_imports = true
+
+# ============================================================
+# pytest
+# ============================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: integration tests requiring 정우 module_bd",
+]
+
+# ============================================================
+# pytest-cov
+# ============================================================
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "tests/*",
+    "diagnose/*",
+    "notebooks/*",
+    "scripts/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "raise ImportError",
+]
+fail_under = 80
+show_missing = true

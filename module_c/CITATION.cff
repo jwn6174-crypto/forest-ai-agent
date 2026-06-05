@@ -1,0 +1,93 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Module C — Faustmann-Hartman LEV core for Korean Forest Management AI Agent"
+abstract: |
+  Faustmann-Hartman Land Expectation Value computation core for the multi-purpose
+  Korean forest management AI agent (Chungcheongbuk-do Boeun pilot). Integrates
+  KOFPI timber prices, KAU/WTA carbon market, NIFOS carbon uptake (3,212 plots),
+  산림청 cost standards, IPCC 2019 HWP decay, and Korean Forest Service offset
+  methodologies (8 project types). Includes 8-expert multidisciplinary
+  deliberation and 2 academic findings (D114, D115).
+
+authors:
+  - given-names: Heedo
+    family-names: Choi
+    email: zxsa0716@kookmin.ac.kr
+    affiliation: "Department of Forest Environmental Systems, Kookmin University"
+    orcid: "https://orcid.org/0000-0000-0000-0000"  # TBD
+  - given-names: Jeongwoo
+    family-names: Na
+    affiliation: "Same affiliation"
+  - given-names: Minseok
+    family-names: Kim
+    affiliation: "Same affiliation"
+  - given-names: Subum
+    family-names: Ha
+    affiliation: "Same affiliation"
+  - given-names: Cheolhee
+    family-names: Lim
+    affiliation: "CLIM Lab, Kookmin University (P.I., NRF 2022S1A5A8051754)"
+
+version: "1.0.0"
+date-released: "2026-05-22"
+repository-code: "https://github.com/jwn6174-crypto/forest-ai-agent"
+license: MIT
+keywords:
+  - Faustmann-Hartman
+  - LEV
+  - forest management
+  - carbon offset
+  - KAU
+  - Korea forestry
+  - 산림탄소상쇄
+  - 벌기령
+  - 다목적 산림경영
+  - 충북 보은
+  - NRF
+  - multi-expert deliberation
+
+references:
+  - type: article
+    authors:
+      - family-names: Faustmann
+        given-names: Martin
+    title: "Calculation of the value which forest land and immature stands possess for forestry"
+    year: 1849
+    journal: "Allgemeine Forst- und Jagd-Zeitung"
+  - type: article
+    authors:
+      - family-names: Hartman
+        given-names: Richard
+    title: "The harvesting decision when a standing forest has value"
+    year: 1976
+    journal: "Economic Inquiry"
+    volume: 14
+    issue: 1
+    start: 52
+    end: 58
+  - type: report
+    title: "2019 Refinement to the 2006 IPCC Guidelines for National Greenhouse Gas Inventories, Vol 4 Ch12 Harvested Wood Products"
+    year: 2019
+    institution: "Intergovernmental Panel on Climate Change (IPCC)"
+  - type: thesis
+    authors:
+      - family-names: Park
+        given-names: Ilhee
+    title: "한국 산주의 산림탄소상쇄제도 의지가격 (Korean forest landowner WTA for forest carbon offset)"
+    year: 2020
+    institution: "Seoul National University, Department of Food and Resource Economics"
+    type: "Master's thesis"
+
+funding: |
+  This research was supported by the National Research Foundation of Korea (NRF) Joint
+  Research Grant (Grant No. 2022S1A5A8051754, P.I. Cheolhee Lim, CLIM Lab, Kookmin University).
+
+acknowledgements: |
+  Data sources: carbonregistry.forest.go.kr (산림탄소등록부, 658 registered projects accessed
+  2026-05-20); data.go.kr (Korea Public Data Portal — Forest Statistics 1400000, KAU Emission
+  Trading 1160100); 산림청 (Korea Forest Service) — 2024 임산물생산조사, 2025 산림소득
+  사업시행지침; 국립산림과학원 (NIFoS) — carbon uptake by species/age (3,212 samples);
+  KOFPI (한국임업진흥원) — quarterly timber price reports.
+
+  Acknowledgement to 정우 (Jeongwoo Na) for Module B/D foundational work (yield tables,
+  KOFPI pricing, cost functions, 산림탄소상쇄 RAG corpus — 281 chunks from 11 PDFs).

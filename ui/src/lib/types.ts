@@ -48,7 +48,7 @@ export interface GrowthForecast {
 
 // Module C 출력: 시나리오별 LEV/NPV
 export interface Scenario {
-  id: "immediate" | "five_year" | "ten_year" | "koc" | "ntfp";
+  id: "immediate" | "five_year" | "ten_year" | "koc" | "ntfp" | "thinning";
   name: string;
   description: string;
   harvestYear: number | null;
@@ -119,7 +119,7 @@ export interface PartialResult {
   pnu: string;
   state?: ForestState;
   growth?: GrowthForecast;
-  scenarios?: Scenario[] | null;  // null = Module C 미구현
+  scenarios?: Scenario[] | null;  // null = 분석 서버에서 시나리오 못 받음(graceful degradation)
   market?: MarketData;
   recommendation?: string | null;
   offsetEligibility?: OffsetEligibility;

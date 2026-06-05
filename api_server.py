@@ -5,9 +5,11 @@ FastAPI 서버.  POST /analyze 엔드포인트로 ForestAnalysisResult JSON 반�
 
 모듈 연동 현황:
   Module A  PNU → 임야 상태 (지역별 mock, 실제 위성 모듈 대기)
-  Module B  growth_predict()                      ← 연동 완료
-  Module C  compute_scenarios_npv()               ← 연동 완료 (Faustmann-Hartman + Monte Carlo)
-  Module D  market_snapshot(), cost_function()   ← 연동 완료
+  Module B  growth_predict()   ← 연동 완료
+  Module C  Faustmann-Hartman NPV/6 시나리오/Pareto/추천  ← 연동 완료(D127)
+            stand_adapter → compute_lev_with_plan → ui_adapter 흐름.
+            오류 시에도 A·B·D 결과 보존(graceful degradation).
+  Module D  market_snapshot(), cost_function()  ← 연동 완료
 
 실행:
   python api_server.py
@@ -15,9 +17,10 @@ FastAPI 서버.  POST /analyze 엔드포인트로 ForestAnalysisResult JSON 반�
   uvicorn api_server:app --port 8001 --reload
 """
 
+import os
 import sys
 import random
-import numpy as np
+from functools import lru_cache
 from pathlib import Path
 from datetime import date
 
@@ -34,7 +37,19 @@ from module_bd.src.growth_predict import growth_predict
 from module_bd.src.market_snapshot import market_snapshot
 from module_bd.src.cost_function import cost_function
 
-app = FastAPI(title="MOFOM AI Bridge", version="2.0.0")
+
+@lru_cache(maxsize=4)
+def _market_snapshot_cached(date_iso: str):
+    """market_snapshot 은 호출마다 data.go.kr 에 KAU 라이브 14회 요청(약 3.8s)을
+    보낸다. 같은 날짜면 결과가 동일하므로 날짜별 1회만 실호출하도록 메모이즈해
+    /analyze 가 요청마다 그 지연을 반복하지 않게 한다(D128 과 동일 처리)."""
+    return market_snapshot(date_iso)
+
+# Module C — Faustmann-Hartman 경제성 분석 (희도 D127 통합)
+from module_c.src import stand_adapter, ui_adapter
+from module_c.src.compute_lev import compute_lev_with_plan
+
+app = FastAPI(title="MOFOM AI Bridge", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +57,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def _warm_caches() -> None:
+    """서버 부팅 시 무거운 1회성 비용을 모두 미리 치러 둔다 — 첫 사용자 요청이
+    cold start 를 기다리지 않게 한다(약 10s → 부팅 때 1회). 데우는 대상:
+      · api_server·lev_core 양쪽 market_snapshot 캐시(KAU 라이브 fetch 3.8s)
+      · 임분수확표 로드 + growth_predict 캐시
+      · Module C 전체 파이프라인(compute_lev_with_plan) + offset RAG 로드
+    """
+    try:
+        _market_snapshot_cached(date.today().isoformat())      # api_server 경로 캐시
+        # Module C 전체 파이프라인을 한 번 돌려 lev_core 의 market("2026-05-20")·
+        # growth 캐시와 offset RAG 까지 모두 데운다(작은 샘플로 충분).
+        warm_fs = {
+            "pnu": "4374033021100010000", "species": "강원지방소나무",
+            "estimatedAge": 50, "areaHa": 2.0, "volumePerHa": 281.0,
+            "volumeUncertainty": 42.0, "carbonPerHa": 132.0, "siteIndex": 15,
+            "dataWarning": None,
+        }
+        warm_stand = stand_adapter.from_forest_state(warm_fs)
+        warm_pkg = compute_lev_with_plan(warm_stand, n_samples=8)
+        ui_adapter.to_ui_offset_eligibility(warm_pkg)          # RAG 인용 로드
+        print("[startup] 캐시 워밍 완료 — 첫 요청 cold start 제거")
+    except Exception as e:  # 워밍 실패해도 서버는 정상 기동(요청 시 lazy 로드)
+        print(f"[startup] 캐시 워밍 건너뜀: {e}")
 
 
 # ─── Module A Mock: PNU → 임야 상태 ──────────────────────────────────────────
@@ -381,8 +422,15 @@ def compute_scenarios_npv(
 
 # ─── Request Model ────────────────────────────────────────────────────────────
 
+# UI 인터랙티브 응답용 Monte Carlo 샘플 수 (환경변수로 튜닝).
+# growth_predict·market_snapshot 메모이즈(D128·D132) 후 300 샘플도 약 0.3s 이므로
+# 기본을 정확도 우선 300 으로 둔다. 더 빠르게 하려면 UI_MC_SAMPLES 로 낮춘다.
+_UI_MC_SAMPLES = int(os.getenv("UI_MC_SAMPLES", "300"))
+
+
 class AnalyzeRequest(BaseModel):
     pnu: str
+    riskPreference: str = "balanced"  # safe | balanced | profit (ui 위험 선호)
 
 
 # ─── /analyze ─────────────────────────────────────────────────────────────────
@@ -404,16 +452,16 @@ async def analyze(req: AnalyzeRequest):
     distance_km = p["distance_km"]
     slope_class = p.get("slope", "중")
 
-    # ── Module D: 시장 데이터 ─────────────────────────────────────────────────
+    # ── Module D: 시장 데이터 (날짜별 메모이즈 — KAU 라이브 fetch 반복 제거) ──
     try:
-        market = market_snapshot(today)
+        market = _market_snapshot_cached(today)
     except Exception:
         market = {
             "timber_price": {"특용재": 294300, "1등급": 199700, "2등급": 173400,
                              "3등급": 135800, "원주재": 85700, "원료재": 33800},
             "timber_price_by_species": {},
-            "kau_close": 17200.0,
-            "koc_estimate": 12040.0,
+            "kau_close": 15550.0,
+            "koc_estimate": 10885.0,
             "vcm_floor_wta": 17039.0,
             "discount_rate": 0.05,
         }
@@ -422,8 +470,8 @@ async def analyze(req: AnalyzeRequest):
     species_prices   = (market.get("timber_price_by_species") or {}).get(species, {})
     active_prices    = species_prices if species_prices else timber_prices_kr
 
-    kau_close     = market.get("kau_close")    or 17200.0
-    koc_estimate  = market.get("koc_estimate") or 12040.0
+    kau_close     = market.get("kau_close")    or 15550.0
+    koc_estimate  = market.get("koc_estimate") or 10885.0
     discount_rate = market.get("discount_rate") or 0.05
 
     # ── Module B: 성장 예측 ───────────────────────────────────────────────────
@@ -531,20 +579,37 @@ async def analyze(req: AnalyzeRequest):
         ),
     }
 
-    # ── Module C: 시나리오 NPV 계산 ───────────────────────────────────────────
+    # ── Module C: 시나리오 NPV — 통합 완료 (희도 D127) ───────────────────────
+    # forest_state(Module A·B) → Module C → ui Scenario[] 의 흐름을 잇는다.
+    # Module C 오류 시에도 A·B·D 결과는 보존한다(graceful degradation).
+    _PREF_MAP = {"safe": "위험회피", "balanced": "균형", "profit": "수익극대화"}
+    user_pref = _PREF_MAP.get(req.riskPreference, "균형")
+
     try:
-        scenarios, recommendation = compute_scenarios_npv(
-            trajectory=trajectory,
-            market_raw=market,
-            area_ha=area_ha,
-            distance_km=distance_km,
-            slope_class=slope_class,
-            age_now=age_now,
-            species=species,
+        # forest_state(camelCase) → Module C stand dict(snake_case, 15키)
+        stand = stand_adapter.from_forest_state(forest_state)
+
+        # 6 시나리오 × Monte Carlo(LHS) → NPV·Pareto·추천 카드.
+        # 메모이즈(D128·D132) 덕에 300 샘플도 약 0.3s. UI_MC_SAMPLES 로 조정 가능.
+        package = compute_lev_with_plan(
+            stand,
+            n_samples=_UI_MC_SAMPLES,
+            user_preference=user_pref,
         )
+
+        # Module C 결과 → ui Scenario[] 형식
+        scenarios      = ui_adapter.to_ui_scenarios(package, age_now=age_now)
+        recommendation = ui_adapter.to_ui_recommendation(package)
+
+        # 8 사업유형 정밀 매칭 → offsetEligibility 교체(Module A baselineCarbon 결합)
+        offset_from_c = ui_adapter.to_ui_offset_eligibility(package)
+        offset_from_c["baselineCarbon"] = stored_co2_per_ha * area_ha
+        offset_eligibility = offset_from_c
+
     except Exception as e:
-        # Module C 오류 시 null 반환 (UI가 graceful fallback 처리)
-        scenarios      = None
+        # Module C 가 실패해도 위성·성장·시장 결과는 그대로 반환
+        print(f"[Module C] 경제성 분석 오류 — scenarios 생략: {e}")
+        scenarios     = None
         recommendation = None
 
     return {
@@ -568,8 +633,8 @@ async def health():
         "modules": {
             "A": "mock",
             "B": "growth_predict (live)",
-            "C": "compute_scenarios_npv (live)",
-            "D": "market_snapshot + cost_function (live)",
+            "C": "Faustmann-Hartman (live)",
+            "D": "market_snapshot (live)",
         },
     }
 

@@ -1,0 +1,109 @@
+{
+  "_meta": {
+    "name": "Non-Timber Forest Products (NTFP) Income per Hectare per Year",
+    "decision_id": "D13",
+    "source_primary": "산림청 「2023 임산물 생산조사」 (kfri.go.kr 통합자료실)",
+    "source_secondary": "충북농업기술원 임업기술센터 보은지소 (직접 연락 예정)",
+    "source_tertiary": "산림조합중앙회 임산물 유통정보 (nfck.or.kr 게시판)",
+    "kosis_status": "임가소득 도(道) 단위만 — ha 환산 불가, 정우 5/18 diagnose 결과",
+    "fetched_at": "2026-05-20",
+    "regional_specificity": "전국 평균 기준. 충북 보은 = 1.0x (보수 추정)",
+    "limitations": [
+      "산림청 2023 임산물생산조사 PDF 미확보 — 경영자 deliberation + 학술 자료 기반 추정",
+      "사용자(희도)가 PDF 확보 + 충북농기원 연락 후 정밀 값 갱신 권장",
+      "*임가 단위* 평균이라 *임지 단위* 변환 시 면적 가정 필요 (평균 임가 3-5ha 추정)",
+      "월별 변동성 (시계열) 미반영 — 산림조합 유통정보로 보완",
+      "5/19 산림학자 deliberation: 시나리오 S5 를 S5a 표고 (carbon 중립~+15%) / S5b 송이 (carbon -15~-25%) 분리 권장"
+    ]
+  },
+  "products": {
+    "shiitake_oak_log": {
+      "korean_name": "표고 (원목재배)",
+      "production_method": "참나무 원목 1000본/ha 노지 균재배",
+      "annual_income_won_per_ha": {
+        "min": 3000000,
+        "p25": 4500000,
+        "mean": 5500000,
+        "p75": 6500000,
+        "max": 8000000
+      },
+      "std_estimate": 1500000,
+      "peak_year_after_inoculation": 4,
+      "yield_period_years": 7,
+      "labor_intensity": "high",
+      "carbon_impact_on_pine": "+5 to +15% (간벌재 활용, 정기 솎음)",
+      "applicable_species_host": ["참나무류", "낙엽송 (보조)"],
+      "scenario_label": "S5a",
+      "source_korea": "산림청 임산물생산조사 평균 + 경영자 deliberation (보은 노지재배 300-800만원/ha)",
+      "monte_carlo_distribution": "Lognormal(μ=ln(5.5M), σ=0.27)",
+      "note": "참나무 원목 식재 비용 별도. 4년차 peak 후 점차 감소. 폐원목 처분 매출 별도."
+    },
+    "pine_mushroom": {
+      "korean_name": "송이 (천연발생)",
+      "production_method": "강원지방소나무 균근 — 비배·시비 X (생태계 보전)",
+      "annual_income_won_per_ha": {
+        "min": 500000,
+        "p25": 800000,
+        "mean": 1500000,
+        "p75": 2200000,
+        "max": 3000000
+      },
+      "std_estimate": 800000,
+      "peak_year_after_planting": 30,
+      "yield_period_years": 50,
+      "labor_intensity": "very_low",
+      "carbon_impact_on_pine": "-15 to -25% (시비 제한, 하층식생 제거, 토양 N 빈영양 유지)",
+      "applicable_species_host": ["강원지방소나무", "중부지방소나무"],
+      "scenario_label": "S5b",
+      "source_korea": "산림청 임산물생산조사 + 산림학자 deliberation",
+      "monte_carlo_distribution": "Lognormal(μ=ln(1.5M), σ=0.55)",
+      "note": "변동성 매우 큼 (기상 + 균환경). 시세 kg당 80-150만원 (자연송이) — 극단치 가능"
+    },
+    "wild_ginseng_short": {
+      "korean_name": "산양삼 (단기재배)",
+      "production_method": "임내 자생 환경 + 야생화 재배",
+      "annual_income_won_per_ha": {
+        "min": 500000,
+        "mean": 1000000,
+        "max": 1500000
+      },
+      "std_estimate": 400000,
+      "peak_year_after_planting": 7,
+      "yield_period_years": 15,
+      "labor_intensity": "medium",
+      "carbon_impact_on_pine": "neutral (하층식생 활용)",
+      "applicable_species_host": ["all"],
+      "scenario_label": "S5c",
+      "source_korea": "산림청 임산물생산조사 + 한국임업진흥원",
+      "note": "7-10년차 수확 전까지 0원 — Faustmann 적분 시 negative cash flow"
+    },
+    "wild_vegetables": {
+      "korean_name": "산나물 (고사리·취·두릅)",
+      "production_method": "임내 자생 채취 + 일부 재배",
+      "annual_income_won_per_ha": {
+        "min": 300000,
+        "mean": 500000,
+        "max": 800000
+      },
+      "std_estimate": 200000,
+      "peak_year_after_planting": 1,
+      "yield_period_years": "indefinite",
+      "labor_intensity": "low",
+      "carbon_impact_on_pine": "+0 to +5% (하층식생 자연 회복)",
+      "applicable_species_host": ["all"],
+      "scenario_label": "S5d",
+      "source_korea": "산림청 임산물생산조사 + 산림조합 유통정보"
+    },
+    "chestnut": {
+      "korean_name": "밤",
+      "annual_income_won_per_ha": {"mean": 2500000},
+      "applicable_species_host": ["밤나무 (독립 단일종)"],
+      "scenario_label": "S5e (단일종 재배)",
+      "note": "밤나무 단일종 임지에 적용 — 산림 다목적 시나리오와 분리"
+    }
+  },
+  "default_for_scenario_S5": {
+    "scenario_5_default": "shiitake_oak_log (S5a)",
+    "rationale": "정우 NTFP 200만원/ha/yr 가정과 가장 가까운 표준 시나리오 — 경영자 deliberation 으로 보은 평균 5.5M/ha 으로 정정"
+  }
+}

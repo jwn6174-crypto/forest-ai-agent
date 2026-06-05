@@ -6,7 +6,7 @@ import clsx from "clsx";
 const MODULE_LABELS: Record<keyof ModuleStatus, string> = {
   A: "A: 위성 추정",
   B: "B: 성장 예측",
-  C: "C: NPV 시나리오",
+  C: "C: 경제성 분석",
   D: "D: 시장 데이터",
   E: "E: AI 분석",
 };

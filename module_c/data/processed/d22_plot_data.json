@@ -1,0 +1,33 @@
+{
+  "x_labels": [
+    "boeun_real_oedari_8197tco2",
+    "boeun_real_wonpyeongri_63658tc",
+    "jinan_real_waryongri_4671tco2",
+    "jinan_real_guryongri_18063tco2"
+  ],
+  "certified_per_30yr": [
+    320.2,
+    320.05,
+    319.93,
+    320.27
+  ],
+  "model_per_30yr": [
+    157.5,
+    157.5,
+    157.5,
+    157.5
+  ],
+  "difference_pct": [
+    103.3,
+    103.2,
+    103.1,
+    103.3
+  ],
+  "korean": {
+    "title": "D22: 인증 흡수량 vs Module C 모델 (4 real 등록사업)",
+    "y_label": "30년 누적 흡수량 (tCO₂/ha)",
+    "x_label": "검증 case",
+    "legend_cert": "carbonregistry 인증",
+    "legend_model": "Module C 모델 (자연 성장)"
+  }
+}
