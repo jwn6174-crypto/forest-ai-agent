@@ -4,7 +4,7 @@ import { FileText, Download, Printer, ChevronRight, TreePine, TrendingUp, Leaf, 
 import type { PartialResult } from "@/lib/types";
 
 // ── 보고서 HTML 생성 ──────────────────────────────────────────────────────────
-function buildReportHTML(data: PartialResult): string {
+function buildReportHTML(data: PartialResult, logoDataUrl: string): string {
   const s = data.state!;
   const m = data.market!;
   const scenarios = data.scenarios ?? [];
@@ -111,9 +111,15 @@ function buildReportHTML(data: PartialResult): string {
 
   <!-- 헤더 -->
   <div class="header">
-    <div>
-      <div class="header-logo">🌲 MOFOM AI</div>
-      <div style="font-size:12px;color:#555;margin-top:2px">다목적 산림경영 의사결정 분석 보고서</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      ${logoDataUrl
+        ? `<img src="${logoDataUrl}" style="height:52px;width:auto;object-fit:contain" alt="MOFOM AI"/>`
+        : `<span style="font-size:24px">🌲</span>`
+      }
+      <div>
+        <div class="header-logo">MOFOM AI</div>
+        <div style="font-size:12px;color:#555;margin-top:2px">다목적 산림경영 의사결정 분석 보고서</div>
+      </div>
     </div>
     <div class="header-sub">
       <div class="header-badge">AI 분석 완료</div>
@@ -242,11 +248,25 @@ export default function ReportSidebar({ data }: { data: PartialResult | null }) 
 
   const ready = !!(data?.state && data?.market && data?.scenarios);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!data || !ready) return;
     setIsGenerating(true);
     try {
-      const html = buildReportHTML(data);
+      // 로고를 base64로 embed (새 탭 blob URL에서 /logo.png가 깨지지 않게)
+      let logoDataUrl = "";
+      try {
+        const resp = await fetch("/logo.png");
+        const imgBlob = await resp.blob();
+        logoDataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(imgBlob);
+        });
+      } catch {
+        // 실패 시 이모지 fallback
+      }
+
+      const html = buildReportHTML(data, logoDataUrl);
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");
