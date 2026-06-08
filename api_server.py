@@ -681,8 +681,14 @@ async def analyze(req: AnalyzeRequest):
     # ── Module C: 시나리오 NPV — 통합 완료 (희도 D127) ───────────────────────
     # forest_state(Module A·B) → Module C → ui Scenario[] 의 흐름을 잇는다.
     # Module C 오류 시에도 A·B·D 결과는 보존한다(graceful degradation).
-    _PREF_MAP = {"safe": "위험회피", "balanced": "균형", "profit": "수익극대화"}
-    user_pref = _PREF_MAP.get(req.riskPreference, "균형")
+    # UI 위험선호 어휘 두 가지를 모두 받는다(견고성): safe/balanced/profit 와
+    # low/medium/high(=보수적/중간/공격적). 어느 쪽으로 와도 동일하게 매핑돼
+    # ui 측 값 표기가 바뀌어도 위험선호가 Module C 추천에 반영된다.
+    _PREF_MAP = {
+        "safe": "위험회피", "balanced": "균형", "profit": "수익극대화",
+        "low": "위험회피", "medium": "균형", "high": "수익극대화",
+    }
+    user_pref = _PREF_MAP.get((req.riskPreference or "").lower(), "균형")
 
     try:
         # forest_state(camelCase) → Module C stand dict(snake_case, 15키)

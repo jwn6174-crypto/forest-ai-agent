@@ -4,7 +4,7 @@ const PYTHON_API = process.env.PYTHON_API_URL ?? "http://localhost:8001";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { pnu } = body;
+  const { pnu, riskPreference } = body;
 
   if (!pnu || typeof pnu !== "string") {
     return NextResponse.json({ error: "PNU 코드가 필요합니다" }, { status: 400 });
@@ -14,7 +14,9 @@ export async function POST(request: Request) {
     const res = await fetch(`${PYTHON_API}/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pnu }),
+      // riskPreference 를 백엔드로 전달 — 누락되면 위험선호가 Module C 추천에
+      // 반영되지 않는다(백엔드는 safe/balanced/profit·low/medium/high 모두 수용).
+      body: JSON.stringify({ pnu, riskPreference: riskPreference ?? "balanced" }),
       // Next.js 서버 → Python 내부 호출이므로 캐싱 없음
       cache: "no-store",
     });
