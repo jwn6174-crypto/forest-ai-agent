@@ -44,51 +44,60 @@ ${scenarioLines}
 }
 
 export async function POST(request: Request) {
-  const { messages, context } = (await request.json()) as {
-    messages: { role: "user" | "assistant"; content: string }[];
-    context: ForestAnalysisResult;
-  };
+  try {
+    const { messages, context } = (await request.json()) as {
+      messages: { role: "user" | "assistant"; content: string }[];
+      context: ForestAnalysisResult;
+    };
 
-  if (!process.env.GEMINI_API_KEY) {
-    return new Response("GEMINI_API_KEY가 설정되지 않았습니다.", { status: 503 });
-  }
+    if (!process.env.GEMINI_API_KEY) {
+      return new Response("GEMINI_API_KEY가 설정되지 않았습니다.", { status: 503 });
+    }
 
-  // 마지막 메시지 (현재 질문)
-  const lastMsg = messages[messages.length - 1];
-  // 이전 대화 히스토리 (Gemini: role은 "user" | "model")
-  const history = messages.slice(0, -1).map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
+    const lastMsg = messages[messages.length - 1];
+    const history = messages.slice(0, -1).map((m) => ({
+      role: m.role === "assistant" ? "model" : ("user" as "user" | "model"),
+      parts: [{ text: m.content }],
+    }));
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-lite",
-    systemInstruction: buildSystemPrompt(context),
-  });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash-lite",
+      systemInstruction: buildSystemPrompt(context),
+    });
 
-  const chat = model.startChat({ history });
-  const result = await chat.sendMessageStream(lastMsg.content);
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessageStream(lastMsg.content);
 
-  const readable = new ReadableStream({
-    async start(controller) {
-      try {
-        for await (const chunk of result.stream) {
-          const text = chunk.text();
-          if (text) {
-            controller.enqueue(new TextEncoder().encode(text));
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) {
+              controller.enqueue(new TextEncoder().encode(text));
+            }
           }
+        } catch (e) {
+          console.error("[chat] 스트리밍 오류:", e);
+          controller.enqueue(new TextEncoder().encode(`[스트리밍 오류: ${String(e)}]`));
+        } finally {
+          controller.close();
         }
-      } finally {
-        controller.close();
-      }
-    },
-  });
+      },
+    });
 
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
-      "X-Accel-Buffering": "no",
-    },
-  });
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  } catch (e) {
+    console.error("[chat] 함수 오류:", e);
+    return new Response(
+      JSON.stringify({ error: String(e) }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }
