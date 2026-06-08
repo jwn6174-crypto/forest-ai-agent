@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { ForestAnalysisResult } from "@/lib/types";
 
-const client = new Anthropic();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
 function buildSystemPrompt(ctx: ForestAnalysisResult): string {
   const s = ctx.state;
@@ -24,7 +24,7 @@ PNU: ${s.pnu}
 입목축적: ${s.volumePerHa} m³/ha (±${s.volumeUncertainty}) | 탄소저장량: ${s.carbonPerHa} tC/ha
 등급 분포: 특용재 ${s.gradeDistribution.teukYongJae}% / 1등급 ${s.gradeDistribution.grade1}% / 2등급 ${s.gradeDistribution.grade2}% / 3등급 ${s.gradeDistribution.grade3}% / 원주재 ${s.gradeDistribution.wonJuJae}% / 원료재 ${s.gradeDistribution.wonRyoJae}%
 
-[5개 시나리오 30년 NPV]
+[시나리오 30년 NPV]
 ${scenarioLines}
 
 [권장 시나리오]: ${bestName} — 예상 NPV 약 ${bestNpv.toLocaleString()}만원
@@ -49,24 +49,38 @@ export async function POST(request: Request) {
     context: ForestAnalysisResult;
   };
 
-  const stream = client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    system: buildSystemPrompt(context),
-    messages,
+  if (!process.env.GEMINI_API_KEY) {
+    return new Response("GEMINI_API_KEY가 설정되지 않았습니다.", { status: 503 });
+  }
+
+  // 마지막 메시지 (현재 질문)
+  const lastMsg = messages[messages.length - 1];
+  // 이전 대화 히스토리 (Gemini: role은 "user" | "model")
+  const history = messages.slice(0, -1).map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    systemInstruction: buildSystemPrompt(context),
   });
+
+  const chat = model.startChat({ history });
+  const result = await chat.sendMessageStream(lastMsg.content);
 
   const readable = new ReadableStream({
     async start(controller) {
-      for await (const event of stream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          controller.enqueue(new TextEncoder().encode(event.delta.text));
+      try {
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            controller.enqueue(new TextEncoder().encode(text));
+          }
         }
+      } finally {
+        controller.close();
       }
-      controller.close();
     },
   });
 
