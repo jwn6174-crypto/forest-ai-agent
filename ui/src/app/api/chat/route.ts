@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { ForestAnalysisResult } from "@/lib/types";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
+const MODEL = "gemini-2.5-flash-lite";
 
 function buildSystemPrompt(ctx: ForestAnalysisResult): string {
   const s = ctx.state;
@@ -50,36 +50,76 @@ export async function POST(request: Request) {
       context: ForestAnalysisResult;
     };
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!GEMINI_API_KEY) {
       return new Response("GEMINI_API_KEY가 설정되지 않았습니다.", { status: 503 });
     }
 
-    const lastMsg = messages[messages.length - 1];
-    const history = messages.slice(0, -1).map((m) => ({
-      role: m.role === "assistant" ? "model" : ("user" as "user" | "model"),
+    // Gemini REST API 형식으로 변환
+    const contents = messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
-      systemInstruction: buildSystemPrompt(context),
-    });
+    const body = {
+      system_instruction: { parts: [{ text: buildSystemPrompt(context) }] },
+      contents,
+      generationConfig: { maxOutputTokens: 1024 },
+    };
 
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessageStream(lastMsg.content);
+    // SSE 스트리밍 REST API 호출
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
 
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      console.error("[chat] Gemini API 오류:", geminiRes.status, errText);
+      return new Response(
+        JSON.stringify({ error: `Gemini API 오류: ${geminiRes.status}` }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // SSE 스트림 파싱 → 텍스트만 추출하여 포워딩
+    const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of result.stream) {
-            const text = chunk.text();
-            if (text) {
-              controller.enqueue(new TextEncoder().encode(text));
+          const reader = geminiRes.body!.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+              if (!line.startsWith("data: ")) continue;
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr || jsonStr === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const text =
+                  parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+                if (text) {
+                  controller.enqueue(encoder.encode(text));
+                }
+              } catch {
+                // JSON 파싱 실패 시 무시
+              }
             }
           }
         } catch (e) {
-          console.error("[chat] 스트리밍 오류:", e);
-          controller.enqueue(new TextEncoder().encode(`[스트리밍 오류: ${String(e)}]`));
+          console.error("[chat] 스트리밍 파싱 오류:", e);
         } finally {
           controller.close();
         }
