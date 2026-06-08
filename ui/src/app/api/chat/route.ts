@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       const errText = await geminiRes.text();
       console.error("[chat] Gemini API 오류:", geminiRes.status, errText);
       return new Response(
-        JSON.stringify({ error: `Gemini API 오류: ${geminiRes.status}` }),
+        JSON.stringify({ error: `Gemini API 오류: ${geminiRes.status}`, detail: errText }),
         { status: 502, headers: { "Content-Type": "application/json" } }
       );
     }
