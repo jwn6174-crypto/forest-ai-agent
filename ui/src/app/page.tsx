@@ -84,29 +84,6 @@ export default function Home() {
                 Faustmann–Hartman 모델로 통합하여 5개 시나리오의 NPV를 분석합니다.
               </p>
 
-              <div className="grid grid-cols-3 gap-4 max-w-md mx-auto pt-2">
-                {[
-                  { img: "/card-satellite.jpg", label: "위성 AGB 추정",  sub: "GEDI · Sentinel" },
-                  { img: "/card-chart.jpg",     label: "30년 성장 예측", sub: "임분수확표" },
-                  { img: "/card-ai.jpg",        label: "AI 자연어 설명", sub: "Claude Sonnet" },
-                ].map((f) => (
-                  <div
-                    key={f.label}
-                    className="bg-white/10 rounded-2xl overflow-hidden border border-white/15 text-center"
-                  >
-                    <img
-                      src={f.img}
-                      alt={f.label}
-                      className="w-full h-24 object-cover"
-                    />
-                    <div className="px-3 py-2.5">
-                      <p className="text-sm font-semibold text-forest-200">{f.label}</p>
-                      <p className="text-xs text-forest-500 mt-0.5">{f.sub}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               <p className="text-xs text-forest-500 pt-1">
                 위 데모 버튼으로 샘플 임야를 즉시 분석해보세요
               </p>
