@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const body = {
       system_instruction: { parts: [{ text: buildSystemPrompt(context) }] },
       contents,
-      generationConfig: { maxOutputTokens: 1024 },
+      generationConfig: { maxOutputTokens: 4096 },
     };
 
     // SSE 스트리밍 REST API 호출
