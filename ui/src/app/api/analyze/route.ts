@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
+import { getMockData } from "@/lib/mock-data";
 
 const PYTHON_API = process.env.PYTHON_API_URL ?? "http://localhost:8001";
+const DEMO_MODE = process.env.DEMO_MODE === "true";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { pnu, riskPreference } = body;
+  const { pnu } = body;
 
   if (!pnu || typeof pnu !== "string") {
     return NextResponse.json({ error: "PNU 코드가 필요합니다" }, { status: 400 });
+  }
+
+  // 데모 모드: Python 백엔드 없이 mock 데이터 반환 (0.8초 딜레이로 로딩 시뮬레이션)
+  if (DEMO_MODE) {
+    await new Promise((r) => setTimeout(r, 800));
+    const mockResult = getMockData(pnu);
+    return NextResponse.json({ ...mockResult, pnu, _demo: true });
   }
 
   try {
     const res = await fetch(`${PYTHON_API}/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // riskPreference 를 백엔드로 전달 — 누락되면 위험선호가 Module C 추천에
-      // 반영되지 않는다(백엔드는 safe/balanced/profit·low/medium/high 모두 수용).
-      body: JSON.stringify({ pnu, riskPreference: riskPreference ?? "balanced" }),
+      body: JSON.stringify({ pnu }),
       // Next.js 서버 → Python 내부 호출이므로 캐싱 없음
       cache: "no-store",
     });
